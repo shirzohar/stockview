@@ -11,7 +11,8 @@ function App() {
     purchasePrice: '',
     quantity: '',
     exchange: 'israeli',
-    exchangeRate: ''
+    exchangeRate: '',
+    currentPrice: ''
   });
 
   // טעינת נתונים מ-LocalStorage בעת טעינת הקומפוננטה
@@ -56,7 +57,8 @@ function App() {
       purchaseDate: formData.purchaseDate,
       purchasePrice: parseFloat(formData.purchasePrice),
       quantity: parseInt(formData.quantity),
-      exchangeRate: formData.exchange === 'american' ? parseFloat(formData.exchangeRate) : null
+      exchangeRate: formData.exchange === 'american' ? parseFloat(formData.exchangeRate) : null,
+      currentPrice: parseFloat(formData.currentPrice)
     };
 
     // שמירה בטבלה המתאימה
@@ -79,7 +81,8 @@ function App() {
       purchasePrice: '',
       quantity: '',
       exchange: 'israeli',
-      exchangeRate: ''
+      exchangeRate: '',
+      currentPrice: ''
     });
   };
 
@@ -93,7 +96,15 @@ function App() {
   };
 
   const formatPrice = (price) => {
+    if (price === null || price === undefined || isNaN(price)) {
+      return '0.00';
+    }
     return price.toFixed(2);
+  };
+
+  const calculateProfitPercentage = (purchaseValue, currentValue) => {
+    if (purchaseValue === 0 || !purchaseValue || !currentValue) return 0;
+    return ((currentValue - purchaseValue) / purchaseValue * 100).toFixed(2);
   };
 
   if (showForm) {
@@ -155,6 +166,21 @@ function App() {
                   required
                   min="1"
                   placeholder="1"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="currentPrice">מחיר נוכחי *</label>
+                <input
+                  type="number"
+                  id="currentPrice"
+                  name="currentPrice"
+                  value={formData.currentPrice}
+                  onChange={handleInputChange}
+                  required
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
                 />
               </div>
 
@@ -227,19 +253,38 @@ function App() {
                       <th>תאריך קנייה</th>
                       <th>מחיר קנייה (₪)</th>
                       <th>כמות</th>
-                      <th>ערך כולל (₪)</th>
+                      <th>סה"כ קנייה בש"ח</th>
+                      <th>מחיר נוכחי (₪)</th>
+                      <th>סה"כ שווי היום (₪)</th>
+                      <th>סה"כ רווח בש"ח</th>
+                      <th>אחוז רווח</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {israeliStocks.map((stock) => (
-                      <tr key={stock.id}>
-                        <td>{stock.stockName}</td>
-                        <td>{formatDate(stock.purchaseDate)}</td>
-                        <td>{formatPrice(stock.purchasePrice)}</td>
-                        <td>{stock.quantity}</td>
-                        <td>{formatPrice(stock.purchasePrice * stock.quantity)}</td>
-                      </tr>
-                    ))}
+                    {israeliStocks.map((stock) => {
+                      const totalPurchase = (stock.purchasePrice || 0) * (stock.quantity || 0);
+                      const totalCurrentValue = (stock.currentPrice || 0) * (stock.quantity || 0);
+                      const profit = totalCurrentValue - totalPurchase;
+                      const profitPercentage = calculateProfitPercentage(totalPurchase, totalCurrentValue);
+                      
+                      return (
+                        <tr key={stock.id}>
+                          <td>{stock.stockName}</td>
+                          <td>{formatDate(stock.purchaseDate)}</td>
+                          <td>{formatPrice(stock.purchasePrice)}</td>
+                          <td>{stock.quantity}</td>
+                          <td>{formatPrice(totalPurchase)}</td>
+                          <td>{formatPrice(stock.currentPrice)}</td>
+                          <td>{formatPrice(totalCurrentValue)}</td>
+                          <td className={profit >= 0 ? 'profit-positive' : 'profit-negative'}>
+                            {formatPrice(profit)}
+                          </td>
+                          <td className={profit >= 0 ? 'profit-positive' : 'profit-negative'}>
+                            {profitPercentage}%
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -258,21 +303,44 @@ function App() {
                       <th>תאריך קנייה</th>
                       <th>מחיר קנייה ($)</th>
                       <th>כמות</th>
-                      <th>שער חליפין</th>
-                      <th>ערך כולל (₪)</th>
+                      <th>סה"כ רכישה בדולר</th>
+                      <th>סה"כ רכישה בשקל</th>
+                      <th>שער חליפין ביום הקנייה</th>
+                      <th>שער חליפין היום</th>
+                      <th>מחיר נוכחי ($)</th>
+                      <th>סה"כ שווי בדולר</th>
+                      <th>סה"כ שווי בש"ח</th>
+                      <th>אחוז רווח</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {americanStocks.map((stock) => (
-                      <tr key={stock.id}>
-                        <td>{stock.stockName}</td>
-                        <td>{formatDate(stock.purchaseDate)}</td>
-                        <td>{formatPrice(stock.purchasePrice)}</td>
-                        <td>{stock.quantity}</td>
-                        <td>{formatPrice(stock.exchangeRate)}</td>
-                        <td>{formatPrice(stock.purchasePrice * stock.quantity * stock.exchangeRate)}</td>
-                      </tr>
-                    ))}
+                    {americanStocks.map((stock) => {
+                      const totalPurchaseUSD = (stock.purchasePrice || 0) * (stock.quantity || 0);
+                      const totalPurchaseILS = totalPurchaseUSD * (stock.exchangeRate || 0);
+                      const totalCurrentValueUSD = (stock.currentPrice || 0) * (stock.quantity || 0);
+                      const currentExchangeRate = stock.exchangeRate || 0; // TODO: לקבל שער נוכחי
+                      const totalCurrentValueILS = totalCurrentValueUSD * currentExchangeRate;
+                      const profitPercentage = calculateProfitPercentage(totalPurchaseILS, totalCurrentValueILS);
+                      
+                      return (
+                        <tr key={stock.id}>
+                          <td>{stock.stockName}</td>
+                          <td>{formatDate(stock.purchaseDate)}</td>
+                          <td>{formatPrice(stock.purchasePrice)}</td>
+                          <td>{stock.quantity}</td>
+                          <td>{formatPrice(totalPurchaseUSD)}</td>
+                          <td>{formatPrice(totalPurchaseILS)}</td>
+                          <td>{formatPrice(stock.exchangeRate)}</td>
+                          <td>{formatPrice(currentExchangeRate)}</td>
+                          <td>{formatPrice(stock.currentPrice)}</td>
+                          <td>{formatPrice(totalCurrentValueUSD)}</td>
+                          <td>{formatPrice(totalCurrentValueILS)}</td>
+                          <td className={profitPercentage >= 0 ? 'profit-positive' : 'profit-negative'}>
+                            {profitPercentage}%
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

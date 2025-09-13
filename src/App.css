@@ -457,3 +457,14 @@ body {
     font-size: 1.2rem;
   }
 }
+
+/* Profit/Loss styling */
+.profit-positive {
+  color: #27ae60;
+  font-weight: 600;
+}
+
+.profit-negative {
+  color: #e74c3c;
+  font-weight: 600;
+}
