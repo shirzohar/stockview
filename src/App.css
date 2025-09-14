@@ -68,6 +68,39 @@ body {
   flex-wrap: wrap;
 }
 
+/* Expand button styles */
+.expand-button {
+  font-size: 14px;
+  color: #667eea;
+  transition: all 0.2s ease;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.expand-button:hover {
+  background-color: #f0f0f0;
+  color: #764ba2;
+}
+
+/* Detail row styles */
+.detail-row {
+  opacity: 0.9;
+}
+
+.detail-row:hover {
+  opacity: 1;
+}
+
+/* Summary row when expanded */
+.summary-row-expanded {
+  background-color: #fff3cd !important;
+  border: 2px solid #ffc107 !important;
+}
+
+.summary-row-expanded td {
+  font-weight: 600;
+}
+
 /* Main buttons container */
 .main-buttons-container {
   display: flex;

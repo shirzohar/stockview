@@ -1,5 +1,5 @@
 import './App.css';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
 function App() {
   const [showForm, setShowForm] = useState(false);
@@ -17,6 +17,7 @@ function App() {
   const [editingStock, setEditingStock] = useState(null);
   const [showAmericanColumns, setShowAmericanColumns] = useState(true);
   const [editingField, setEditingField] = useState(null);
+  const [expandedGroups, setExpandedGroups] = useState({});
 
   // טעינת נתונים מ-LocalStorage בעת טעינת הקומפוננטה
   useEffect(() => {
@@ -236,8 +237,13 @@ function App() {
       return;
     }
     
-    let currentPrice = editingStock.currentPrice;
-    let dailyChangePercent = editingStock.dailyChangePercent;
+    if (!editingStock) {
+      alert('שגיאה: לא נמצאה מנייה לעריכה');
+      return;
+    }
+    
+    let currentPrice = editingStock.currentPrice || 0;
+    let dailyChangePercent = editingStock.dailyChangePercent || 0;
     
     if (formData.exchange === 'american') {
       const priceData = await fetchCurrentPrice(formData.stockName.trim());
@@ -361,6 +367,56 @@ function App() {
   const calculateProfitPercentage = (purchaseValue, currentValue) => {
     if (purchaseValue === 0 || !purchaseValue || !currentValue) return 0;
     return ((currentValue - purchaseValue) / purchaseValue * 100).toFixed(2);
+  };
+
+  // פונקציה לקיבוץ מניות לפי שם
+  const groupStocksByName = (stocks) => {
+    const grouped = {};
+    stocks.forEach(stock => {
+      if (!grouped[stock.stockName]) {
+        grouped[stock.stockName] = [];
+      }
+      grouped[stock.stockName].push(stock);
+    });
+    return grouped;
+  };
+
+  // פונקציה לחישוב סיכומים של קיבוץ
+  const calculateGroupSummary = (stocks) => {
+    const totalQuantity = stocks.reduce((sum, stock) => sum + (stock.quantity || 0), 0);
+    const totalPurchaseValue = stocks.reduce((sum, stock) => {
+      const purchaseValue = (stock.purchasePrice || 0) * (stock.quantity || 0);
+      return sum + purchaseValue;
+    }, 0);
+    const totalCurrentValue = stocks.reduce((sum, stock) => {
+      const currentValue = (stock.currentPrice || 0) * (stock.quantity || 0);
+      return sum + currentValue;
+    }, 0);
+    const totalProfit = totalCurrentValue - totalPurchaseValue;
+    const profitPercentage = calculateProfitPercentage(totalPurchaseValue, totalCurrentValue);
+    
+    // חישוב מחיר ממוצע משוקלל לפי הכמות
+    const averagePurchasePrice = totalQuantity > 0 ? totalPurchaseValue / totalQuantity : 0;
+    const averageCurrentPrice = totalQuantity > 0 ? totalCurrentValue / totalQuantity : 0;
+    
+    return {
+      totalQuantity,
+      totalPurchaseValue,
+      totalCurrentValue,
+      totalProfit,
+      profitPercentage,
+      averagePurchasePrice,
+      averageCurrentPrice
+    };
+  };
+
+  // פונקציה לטיפול בפתיחה/סגירה של קיבוץ
+  const toggleGroup = (stockName, exchange) => {
+    const key = `${exchange}-${stockName}`;
+    setExpandedGroups(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
   };
 
   if (showForm) {
@@ -535,110 +591,267 @@ function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {israeliStocks.map((stock) => {
-                      const totalPurchase = (stock.purchasePrice || 0) * (stock.quantity || 0);
-                      const totalCurrentValue = (stock.currentPrice || 0) * (stock.quantity || 0);
-                      const profit = totalCurrentValue - totalPurchase;
-                      const profitPercentage = calculateProfitPercentage(totalPurchase, totalCurrentValue);
+                    {Object.entries(groupStocksByName(israeliStocks)).map(([stockName, stocks]) => {
+                      const isExpanded = expandedGroups[`israeli-${stockName}`];
+                      const summary = calculateGroupSummary(stocks);
                       
-                      return (
-                        <tr 
-                          key={stock.id}
-                          className={isEditMode ? 'editable-row' : ''}
-                        >
-                          <td 
-                            onClick={() => handleCellClick(stock.id, 'stockName', 'israeli')}
-                            className={isEditMode ? 'editable-cell' : ''}
+                      // אם יש רק מנייה אחת, הצג אותה כרגיל ללא קיבוץ
+                      if (stocks.length === 1) {
+                        const stock = stocks[0];
+                        const totalPurchase = (stock.purchasePrice || 0) * (stock.quantity || 0);
+                        const totalCurrentValue = (stock.currentPrice || 0) * (stock.quantity || 0);
+                        const profit = totalCurrentValue - totalPurchase;
+                        const profitPercentage = calculateProfitPercentage(totalPurchase, totalCurrentValue);
+                        
+                        return (
+                          <tr 
+                            key={stock.id}
+                            className={isEditMode ? 'editable-row' : ''}
                           >
-                            {editingField === `${stock.id}-stockName` ? (
-                              <input
-                                type="text"
-                                value={stock.stockName}
-                                onChange={(e) => handleInlineEdit(stock.id, 'stockName', e.target.value, 'israeli')}
-                                onBlur={finishInlineEdit}
-                                onKeyPress={(e) => handleKeyPress(e, stock.id, 'stockName', 'israeli')}
-                                autoFocus
-                              />
-                            ) : (
-                              stock.stockName
-                            )}
-                          </td>
-                          <td 
-                            onClick={() => handleCellClick(stock.id, 'purchaseDate', 'israeli')}
-                            className={isEditMode ? 'editable-cell' : ''}
-                          >
-                            {editingField === `${stock.id}-purchaseDate` ? (
-                              <input
-                                type="date"
-                                value={stock.purchaseDate}
-                                onChange={(e) => handleInlineEdit(stock.id, 'purchaseDate', e.target.value, 'israeli')}
-                                onBlur={finishInlineEdit}
-                                onKeyPress={(e) => handleKeyPress(e, stock.id, 'purchaseDate', 'israeli')}
-                                autoFocus
-                              />
-                            ) : (
-                              formatDate(stock.purchaseDate)
-                            )}
-                          </td>
-                          <td 
-                            onClick={() => handleCellClick(stock.id, 'purchasePrice', 'israeli')}
-                            className={isEditMode ? 'editable-cell' : ''}
-                          >
-                            {editingField === `${stock.id}-purchasePrice` ? (
-                              <input
-                                type="number"
-                                value={stock.purchasePrice}
-                                onChange={(e) => handleInlineEdit(stock.id, 'purchasePrice', parseFloat(e.target.value), 'israeli')}
-                                onBlur={finishInlineEdit}
-                                onKeyPress={(e) => handleKeyPress(e, stock.id, 'purchasePrice', 'israeli')}
-                                autoFocus
-                                step="0.01"
-                              />
-                            ) : (
-                              formatPrice(stock.purchasePrice)
-                            )}
-                          </td>
-                          <td 
-                            onClick={() => handleCellClick(stock.id, 'quantity', 'israeli')}
-                            className={isEditMode ? 'editable-cell' : ''}
-                          >
-                            {editingField === `${stock.id}-quantity` ? (
-                              <input
-                                type="number"
-                                value={stock.quantity}
-                                onChange={(e) => handleInlineEdit(stock.id, 'quantity', parseInt(e.target.value), 'israeli')}
-                                onBlur={finishInlineEdit}
-                                onKeyPress={(e) => handleKeyPress(e, stock.id, 'quantity', 'israeli')}
-                                autoFocus
-                                min="1"
-                              />
-                            ) : (
-                              stock.quantity
-                            )}
-                          </td>
-                          <td>{formatPrice(totalPurchase)}</td>
-                          <td>{formatPrice(stock.currentPrice)}</td>
-                          <td>{formatPrice(totalCurrentValue)}</td>
-                          <td className={profit >= 0 ? 'profit-positive' : 'profit-negative'}>
-                            {formatPriceWithSign(profit)}
-                          </td>
-                          <td className={profit >= 0 ? 'profit-positive' : 'profit-negative'}>
-                            {profitPercentage}%
-                          </td>
-                          <td className={(stock.dailyChangePercent || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
-                            {stock.dailyChangePercent !== undefined && stock.dailyChangePercent !== null ? stock.dailyChangePercent.toFixed(2) : '0.00'}%
-                          </td>
-                          {isEditMode && (
-                            <td>
-                              <button 
-                                onClick={() => handleDelete(stock.id, 'israeli')}
-                                className="delete-button"
-                              >
-                                מחק
-                              </button>
+                            <td 
+                              onClick={() => handleCellClick(stock.id, 'stockName', 'israeli')}
+                              className={isEditMode ? 'editable-cell' : ''}
+                            >
+                              {editingField === `${stock.id}-stockName` ? (
+                                <input
+                                  type="text"
+                                  value={stock.stockName}
+                                  onChange={(e) => handleInlineEdit(stock.id, 'stockName', e.target.value, 'israeli')}
+                                  onBlur={finishInlineEdit}
+                                  onKeyPress={(e) => handleKeyPress(e, stock.id, 'stockName', 'israeli')}
+                                  autoFocus
+                                />
+                              ) : (
+                                stock.stockName
+                              )}
                             </td>
-                          )}
-                        </tr>
+                            <td 
+                              onClick={() => handleCellClick(stock.id, 'purchaseDate', 'israeli')}
+                              className={isEditMode ? 'editable-cell' : ''}
+                            >
+                              {editingField === `${stock.id}-purchaseDate` ? (
+                                <input
+                                  type="date"
+                                  value={stock.purchaseDate}
+                                  onChange={(e) => handleInlineEdit(stock.id, 'purchaseDate', e.target.value, 'israeli')}
+                                  onBlur={finishInlineEdit}
+                                  onKeyPress={(e) => handleKeyPress(e, stock.id, 'purchaseDate', 'israeli')}
+                                  autoFocus
+                                />
+                              ) : (
+                                formatDate(stock.purchaseDate)
+                              )}
+                            </td>
+                            <td 
+                              onClick={() => handleCellClick(stock.id, 'purchasePrice', 'israeli')}
+                              className={isEditMode ? 'editable-cell' : ''}
+                            >
+                              {editingField === `${stock.id}-purchasePrice` ? (
+                                <input
+                                  type="number"
+                                  value={stock.purchasePrice}
+                                  onChange={(e) => handleInlineEdit(stock.id, 'purchasePrice', parseFloat(e.target.value), 'israeli')}
+                                  onBlur={finishInlineEdit}
+                                  onKeyPress={(e) => handleKeyPress(e, stock.id, 'purchasePrice', 'israeli')}
+                                  autoFocus
+                                  step="0.01"
+                                />
+                              ) : (
+                                formatPrice(stock.purchasePrice)
+                              )}
+                            </td>
+                            <td 
+                              onClick={() => handleCellClick(stock.id, 'quantity', 'israeli')}
+                              className={isEditMode ? 'editable-cell' : ''}
+                            >
+                              {editingField === `${stock.id}-quantity` ? (
+                                <input
+                                  type="number"
+                                  value={stock.quantity}
+                                  onChange={(e) => handleInlineEdit(stock.id, 'quantity', parseInt(e.target.value), 'israeli')}
+                                  onBlur={finishInlineEdit}
+                                  onKeyPress={(e) => handleKeyPress(e, stock.id, 'quantity', 'israeli')}
+                                  autoFocus
+                                  min="1"
+                                />
+                              ) : (
+                                stock.quantity
+                              )}
+                            </td>
+                            <td>{formatPrice(totalPurchase)}</td>
+                            <td>{formatPrice(stock.currentPrice)}</td>
+                            <td>{formatPrice(totalCurrentValue)}</td>
+                            <td className={profit >= 0 ? 'profit-positive' : 'profit-negative'}>
+                              {formatPriceWithSign(profit)}
+                            </td>
+                            <td className={profit >= 0 ? 'profit-positive' : 'profit-negative'}>
+                              {profitPercentage}%
+                            </td>
+                            <td className={(stock.dailyChangePercent || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
+                              {stock.dailyChangePercent !== undefined && stock.dailyChangePercent !== null ? stock.dailyChangePercent.toFixed(2) : '0.00'}%
+                            </td>
+                            {isEditMode && (
+                              <td>
+                                <button 
+                                  onClick={() => handleDelete(stock.id, 'israeli')}
+                                  className="delete-button"
+                                >
+                                  מחק
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      }
+                      
+                      // אם יש יותר ממנייה אחת, הצג כקיבוץ
+                      return (
+                        <React.Fragment key={stockName}>
+                          {/* שורה מקובצת */}
+                          <tr 
+                            className={`${isEditMode ? 'editable-row' : ''} ${isExpanded ? 'summary-row-expanded' : ''}`}
+                          >
+                            <td 
+                              onClick={() => handleCellClick(stocks[0].id, 'stockName', 'israeli')}
+                              className={isEditMode ? 'editable-cell' : ''}
+                            >
+                              <button 
+                                onClick={() => toggleGroup(stockName, 'israeli')}
+                                className="expand-button"
+                                style={{ marginRight: '8px', background: 'none', border: 'none', cursor: 'pointer' }}
+                              >
+                                {isExpanded ? '▼' : '▶'}
+                              </button>
+                              {stockName}
+                            </td>
+                            <td>פתח קיבוץ</td>
+                            <td>פתח קיבוץ</td>
+                            <td>{summary.totalQuantity}</td>
+                            <td>{formatPrice(summary.totalPurchaseValue)}</td>
+                            <td>{formatPrice(summary.averageCurrentPrice)}</td>
+                            <td>{formatPrice(summary.totalCurrentValue)}</td>
+                            <td className={summary.totalProfit >= 0 ? 'profit-positive' : 'profit-negative'}>
+                              {formatPriceWithSign(summary.totalProfit)}
+                            </td>
+                            <td className={summary.totalProfit >= 0 ? 'profit-positive' : 'profit-negative'}>
+                              {summary.profitPercentage}%
+                            </td>
+                            <td className={(stocks[0].dailyChangePercent || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
+                              {stocks[0].dailyChangePercent !== undefined && stocks[0].dailyChangePercent !== null ? stocks[0].dailyChangePercent.toFixed(2) : '0.00'}%
+                            </td>
+                            {isEditMode && <td></td>}
+                          </tr>
+                          
+                          {/* שורות מפורטות */}
+                          {isExpanded && stocks.map((stock) => {
+                            const totalPurchase = (stock.purchasePrice || 0) * (stock.quantity || 0);
+                            const totalCurrentValue = (stock.currentPrice || 0) * (stock.quantity || 0);
+                            const profit = totalCurrentValue - totalPurchase;
+                            const profitPercentage = calculateProfitPercentage(totalPurchase, totalCurrentValue);
+                            
+                            return (
+                              <tr 
+                                key={stock.id}
+                                className={`${isEditMode ? 'editable-row' : ''} detail-row`}
+                                style={{ backgroundColor: '#f8f9fa' }}
+                              >
+                                <td 
+                                  onClick={() => handleCellClick(stock.id, 'stockName', 'israeli')}
+                                  className={isEditMode ? 'editable-cell' : ''}
+                                  style={{ paddingLeft: '20px' }}
+                                >
+                                  {editingField === `${stock.id}-stockName` ? (
+                                    <input
+                                      type="text"
+                                      value={stock.stockName}
+                                      onChange={(e) => handleInlineEdit(stock.id, 'stockName', e.target.value, 'israeli')}
+                                      onBlur={finishInlineEdit}
+                                      onKeyPress={(e) => handleKeyPress(e, stock.id, 'stockName', 'israeli')}
+                                      autoFocus
+                                    />
+                                  ) : (
+                                    stock.stockName
+                                  )}
+                                </td>
+                                <td 
+                                  onClick={() => handleCellClick(stock.id, 'purchaseDate', 'israeli')}
+                                  className={isEditMode ? 'editable-cell' : ''}
+                                >
+                                  {editingField === `${stock.id}-purchaseDate` ? (
+                                    <input
+                                      type="date"
+                                      value={stock.purchaseDate}
+                                      onChange={(e) => handleInlineEdit(stock.id, 'purchaseDate', e.target.value, 'israeli')}
+                                      onBlur={finishInlineEdit}
+                                      onKeyPress={(e) => handleKeyPress(e, stock.id, 'purchaseDate', 'israeli')}
+                                      autoFocus
+                                    />
+                                  ) : (
+                                    formatDate(stock.purchaseDate)
+                                  )}
+                                </td>
+                                <td 
+                                  onClick={() => handleCellClick(stock.id, 'purchasePrice', 'israeli')}
+                                  className={isEditMode ? 'editable-cell' : ''}
+                                >
+                                  {editingField === `${stock.id}-purchasePrice` ? (
+                                    <input
+                                      type="number"
+                                      value={stock.purchasePrice}
+                                      onChange={(e) => handleInlineEdit(stock.id, 'purchasePrice', parseFloat(e.target.value), 'israeli')}
+                                      onBlur={finishInlineEdit}
+                                      onKeyPress={(e) => handleKeyPress(e, stock.id, 'purchasePrice', 'israeli')}
+                                      autoFocus
+                                      step="0.01"
+                                    />
+                                  ) : (
+                                    formatPrice(stock.purchasePrice)
+                                  )}
+                                </td>
+                                <td 
+                                  onClick={() => handleCellClick(stock.id, 'quantity', 'israeli')}
+                                  className={isEditMode ? 'editable-cell' : ''}
+                                >
+                                  {editingField === `${stock.id}-quantity` ? (
+                                    <input
+                                      type="number"
+                                      value={stock.quantity}
+                                      onChange={(e) => handleInlineEdit(stock.id, 'quantity', parseInt(e.target.value), 'israeli')}
+                                      onBlur={finishInlineEdit}
+                                      onKeyPress={(e) => handleKeyPress(e, stock.id, 'quantity', 'israeli')}
+                                      autoFocus
+                                      min="1"
+                                    />
+                                  ) : (
+                                    stock.quantity
+                                  )}
+                                </td>
+                                <td>{formatPrice(totalPurchase)}</td>
+                                <td>{formatPrice(stock.currentPrice)}</td>
+                                <td>{formatPrice(totalCurrentValue)}</td>
+                                <td className={profit >= 0 ? 'profit-positive' : 'profit-negative'}>
+                                  {formatPriceWithSign(profit)}
+                                </td>
+                                <td className={profit >= 0 ? 'profit-positive' : 'profit-negative'}>
+                                  {profitPercentage}%
+                                </td>
+                                <td className={(stock.dailyChangePercent || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
+                                  {stock.dailyChangePercent !== undefined && stock.dailyChangePercent !== null ? stock.dailyChangePercent.toFixed(2) : '0.00'}%
+                                </td>
+                                {isEditMode && (
+                                  <td>
+                                    <button 
+                                      onClick={() => handleDelete(stock.id, 'israeli')}
+                                      className="delete-button"
+                                    >
+                                      מחק
+                                    </button>
+                                  </td>
+                                )}
+                              </tr>
+                            );
+                          })}
+                        </React.Fragment>
                       );
                     })}
                   </tbody>
@@ -673,136 +886,339 @@ function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {americanStocks.map((stock) => {
-                      const totalPurchaseUSD = (stock.purchasePrice || 0) * (stock.quantity || 0);
-                      const totalPurchaseILS = totalPurchaseUSD * (stock.exchangeRate || 0);
-                      const totalCurrentValueUSD = (stock.currentPrice || 0) * (stock.quantity || 0);
-                      const currentExchangeRate = stock.currentExchangeRate || stock.exchangeRate || 0;
-                      const totalCurrentValueILS = totalCurrentValueUSD * currentExchangeRate;
-                      const profitPercentage = calculateProfitPercentage(totalPurchaseILS, totalCurrentValueILS);
+                    {Object.entries(groupStocksByName(americanStocks)).map(([stockName, stocks]) => {
+                      const isExpanded = expandedGroups[`american-${stockName}`];
+                      const summary = calculateGroupSummary(stocks);
                       
-                      // חישוב השפעת שער החליפין
-                      const exchangeRateImpact = (totalPurchaseUSD * stock.exchangeRate) - (totalCurrentValueUSD * currentExchangeRate);
-                      
-                      return (
-                        <tr 
-                          key={stock.id}
-                          className={isEditMode ? 'editable-row' : ''}
-                        >
-                          <td 
-                            onClick={() => handleCellClick(stock.id, 'stockName', 'american')}
-                            className={isEditMode ? 'editable-cell' : ''}
+                      // אם יש רק מנייה אחת, הצג אותה כרגיל ללא קיבוץ
+                      if (stocks.length === 1) {
+                        const stock = stocks[0];
+                        const totalPurchaseUSD = (stock.purchasePrice || 0) * (stock.quantity || 0);
+                        const totalPurchaseILS = totalPurchaseUSD * (stock.exchangeRate || 0);
+                        const totalCurrentValueUSD = (stock.currentPrice || 0) * (stock.quantity || 0);
+                        const currentExchangeRate = stock.currentExchangeRate || stock.exchangeRate || 0;
+                        const totalCurrentValueILS = totalCurrentValueUSD * currentExchangeRate;
+                        const profitPercentage = calculateProfitPercentage(stock.purchasePrice || 0, stock.currentPrice || 0);
+                        
+                        // חישוב השפעת שער החליפין
+                        const exchangeRateImpact = (totalPurchaseUSD * stock.exchangeRate) - (totalCurrentValueUSD * currentExchangeRate);
+                        
+                        return (
+                          <tr 
+                            key={stock.id}
+                            className={isEditMode ? 'editable-row' : ''}
                           >
-                            {editingField === `${stock.id}-stockName` ? (
-                              <input
-                                type="text"
-                                value={stock.stockName}
-                                onChange={(e) => handleInlineEdit(stock.id, 'stockName', e.target.value, 'american')}
-                                onBlur={finishInlineEdit}
-                                onKeyPress={(e) => handleKeyPress(e, stock.id, 'stockName', 'american')}
-                                autoFocus
-                              />
-                            ) : (
-                              stock.stockName
-                            )}
-                          </td>
-                          <td 
-                            onClick={() => handleCellClick(stock.id, 'purchaseDate', 'american')}
-                            className={isEditMode ? 'editable-cell' : ''}
-                          >
-                            {editingField === `${stock.id}-purchaseDate` ? (
-                              <input
-                                type="date"
-                                value={stock.purchaseDate}
-                                onChange={(e) => handleInlineEdit(stock.id, 'purchaseDate', e.target.value, 'american')}
-                                onBlur={finishInlineEdit}
-                                onKeyPress={(e) => handleKeyPress(e, stock.id, 'purchaseDate', 'american')}
-                                autoFocus
-                              />
-                            ) : (
-                              formatDate(stock.purchaseDate)
-                            )}
-                          </td>
-                          <td 
-                            onClick={() => handleCellClick(stock.id, 'purchasePrice', 'american')}
-                            className={isEditMode ? 'editable-cell' : ''}
-                          >
-                            {editingField === `${stock.id}-purchasePrice` ? (
-                              <input
-                                type="number"
-                                value={stock.purchasePrice}
-                                onChange={(e) => handleInlineEdit(stock.id, 'purchasePrice', parseFloat(e.target.value), 'american')}
-                                onBlur={finishInlineEdit}
-                                onKeyPress={(e) => handleKeyPress(e, stock.id, 'purchasePrice', 'american')}
-                                autoFocus
-                                step="0.01"
-                              />
-                            ) : (
-                              formatPriceWithSign(stock.purchasePrice) + ' $'
-                            )}
-                          </td>
-                          <td 
-                            onClick={() => handleCellClick(stock.id, 'quantity', 'american')}
-                            className={isEditMode ? 'editable-cell' : ''}
-                          >
-                            {editingField === `${stock.id}-quantity` ? (
-                              <input
-                                type="number"
-                                value={stock.quantity}
-                                onChange={(e) => handleInlineEdit(stock.id, 'quantity', parseInt(e.target.value), 'american')}
-                                onBlur={finishInlineEdit}
-                                onKeyPress={(e) => handleKeyPress(e, stock.id, 'quantity', 'american')}
-                                autoFocus
-                                min="1"
-                              />
-                            ) : (
-                              stock.quantity
-                            )}
-                          </td>
-                          <td>{formatPriceWithSign(totalPurchaseUSD)} $</td>
-                          <td>{formatPriceWithSign(totalPurchaseILS)} ₪</td>
-                          <td 
-                            onClick={() => handleCellClick(stock.id, 'exchangeRate', 'american')}
-                            className={isEditMode ? 'editable-cell' : ''}
-                          >
-                            {editingField === `${stock.id}-exchangeRate` ? (
-                              <input
-                                type="number"
-                                value={stock.exchangeRate}
-                                onChange={(e) => handleInlineEdit(stock.id, 'exchangeRate', parseFloat(e.target.value), 'american')}
-                                onBlur={finishInlineEdit}
-                                onKeyPress={(e) => handleKeyPress(e, stock.id, 'exchangeRate', 'american')}
-                                autoFocus
-                                step="0.0001"
-                              />
-                            ) : (
-                              formatPrice(stock.exchangeRate)
-                            )}
-                          </td>
-                          <td>{formatPrice(currentExchangeRate)}</td>
-                          <td>{formatPriceWithSign(stock.currentPrice)} $</td>
-                          <td>{formatPriceWithSign(totalCurrentValueUSD)} $</td>
-                          <td>{formatPriceWithSign(totalCurrentValueILS)} ₪</td>
-                          <td className={profitPercentage >= 0 ? 'profit-positive' : 'profit-negative'}>
-                            {profitPercentage}%
-                          </td>
-                          <td className={(stock.dailyChangePercent || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
-                            {stock.dailyChangePercent ? stock.dailyChangePercent.toFixed(2) : '0.00'}%
-                          </td>
-                          <td className={exchangeRateImpact >= 0 ? 'profit-positive' : 'profit-negative'}>
-                            {formatPriceWithSign(exchangeRateImpact)} ₪
-                          </td>
-                          {isEditMode && (
-                            <td>
-                              <button 
-                                onClick={() => handleDelete(stock.id, 'american')}
-                                className="delete-button"
-                              >
-                                מחק
-                              </button>
+                            <td 
+                              onClick={() => handleCellClick(stock.id, 'stockName', 'american')}
+                              className={isEditMode ? 'editable-cell' : ''}
+                            >
+                              {editingField === `${stock.id}-stockName` ? (
+                                <input
+                                  type="text"
+                                  value={stock.stockName}
+                                  onChange={(e) => handleInlineEdit(stock.id, 'stockName', e.target.value, 'american')}
+                                  onBlur={finishInlineEdit}
+                                  onKeyPress={(e) => handleKeyPress(e, stock.id, 'stockName', 'american')}
+                                  autoFocus
+                                />
+                              ) : (
+                                stock.stockName
+                              )}
                             </td>
-                          )}
-                        </tr>
+                            <td 
+                              onClick={() => handleCellClick(stock.id, 'purchaseDate', 'american')}
+                              className={isEditMode ? 'editable-cell' : ''}
+                            >
+                              {editingField === `${stock.id}-purchaseDate` ? (
+                                <input
+                                  type="date"
+                                  value={stock.purchaseDate}
+                                  onChange={(e) => handleInlineEdit(stock.id, 'purchaseDate', e.target.value, 'american')}
+                                  onBlur={finishInlineEdit}
+                                  onKeyPress={(e) => handleKeyPress(e, stock.id, 'purchaseDate', 'american')}
+                                  autoFocus
+                                />
+                              ) : (
+                                formatDate(stock.purchaseDate)
+                              )}
+                            </td>
+                            <td 
+                              onClick={() => handleCellClick(stock.id, 'purchasePrice', 'american')}
+                              className={isEditMode ? 'editable-cell' : ''}
+                            >
+                              {editingField === `${stock.id}-purchasePrice` ? (
+                                <input
+                                  type="number"
+                                  value={stock.purchasePrice}
+                                  onChange={(e) => handleInlineEdit(stock.id, 'purchasePrice', parseFloat(e.target.value), 'american')}
+                                  onBlur={finishInlineEdit}
+                                  onKeyPress={(e) => handleKeyPress(e, stock.id, 'purchasePrice', 'american')}
+                                  autoFocus
+                                  step="0.01"
+                                />
+                              ) : (
+                                formatPriceWithSign(stock.purchasePrice) + ' $'
+                              )}
+                            </td>
+                            <td 
+                              onClick={() => handleCellClick(stock.id, 'quantity', 'american')}
+                              className={isEditMode ? 'editable-cell' : ''}
+                            >
+                              {editingField === `${stock.id}-quantity` ? (
+                                <input
+                                  type="number"
+                                  value={stock.quantity}
+                                  onChange={(e) => handleInlineEdit(stock.id, 'quantity', parseInt(e.target.value), 'american')}
+                                  onBlur={finishInlineEdit}
+                                  onKeyPress={(e) => handleKeyPress(e, stock.id, 'quantity', 'american')}
+                                  autoFocus
+                                  min="1"
+                                />
+                              ) : (
+                                stock.quantity
+                              )}
+                            </td>
+                            <td>{formatPriceWithSign(totalPurchaseUSD)} $</td>
+                            <td>{formatPriceWithSign(totalPurchaseILS)} ₪</td>
+                            <td 
+                              onClick={() => handleCellClick(stock.id, 'exchangeRate', 'american')}
+                              className={isEditMode ? 'editable-cell' : ''}
+                            >
+                              {editingField === `${stock.id}-exchangeRate` ? (
+                                <input
+                                  type="number"
+                                  value={stock.exchangeRate}
+                                  onChange={(e) => handleInlineEdit(stock.id, 'exchangeRate', parseFloat(e.target.value), 'american')}
+                                  onBlur={finishInlineEdit}
+                                  onKeyPress={(e) => handleKeyPress(e, stock.id, 'exchangeRate', 'american')}
+                                  autoFocus
+                                  step="0.0001"
+                                />
+                              ) : (
+                                formatPrice(stock.exchangeRate)
+                              )}
+                            </td>
+                            <td>{formatPrice(currentExchangeRate)}</td>
+                            <td>{formatPriceWithSign(stock.currentPrice)} $</td>
+                            <td>{formatPriceWithSign(totalCurrentValueUSD)} $</td>
+                            <td>{formatPriceWithSign(totalCurrentValueILS)} ₪</td>
+                            <td className={profitPercentage >= 0 ? 'profit-positive' : 'profit-negative'}>
+                              {profitPercentage}%
+                            </td>
+                            <td className={(stock.dailyChangePercent || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
+                              {stock.dailyChangePercent ? stock.dailyChangePercent.toFixed(2) : '0.00'}%
+                            </td>
+                            <td className={exchangeRateImpact >= 0 ? 'profit-positive' : 'profit-negative'}>
+                              {formatPriceWithSign(exchangeRateImpact)} ₪
+                            </td>
+                            {isEditMode && (
+                              <td>
+                                <button 
+                                  onClick={() => handleDelete(stock.id, 'american')}
+                                  className="delete-button"
+                                >
+                                  מחק
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      }
+                      
+                      // חישוב סיכומים למניות אמריקאיות
+                      const totalPurchaseUSD = stocks.reduce((sum, stock) => sum + ((stock.purchasePrice || 0) * (stock.quantity || 0)), 0);
+                      const totalPurchaseILS = stocks.reduce((sum, stock) => sum + ((stock.purchasePrice || 0) * (stock.quantity || 0) * (stock.exchangeRate || 0)), 0);
+                      const totalCurrentValueUSD = stocks.reduce((sum, stock) => sum + ((stock.currentPrice || 0) * (stock.quantity || 0)), 0);
+                      const totalCurrentValueILS = stocks.reduce((sum, stock) => {
+                        const currentExchangeRate = stock.currentExchangeRate || stock.exchangeRate || 0;
+                        return sum + ((stock.currentPrice || 0) * (stock.quantity || 0) * currentExchangeRate);
+                      }, 0);
+                      // חישוב מחיר ממוצע משוקלל למחיר קנייה ומחיר נוכחי
+                      const averagePurchasePrice = summary.totalQuantity > 0 ? totalPurchaseUSD / summary.totalQuantity : 0;
+                      const averageCurrentPrice = summary.totalQuantity > 0 ? totalCurrentValueUSD / summary.totalQuantity : 0;
+                      const profitPercentage = calculateProfitPercentage(averagePurchasePrice, averageCurrentPrice);
+                      
+                      // חישוב מחיר ממוצע משוקלל
+                      const averageCurrentPriceUSD = summary.totalQuantity > 0 ? totalCurrentValueUSD / summary.totalQuantity : 0;
+                      
+                      // אם יש יותר ממנייה אחת, הצג כקיבוץ
+                      return (
+                        <React.Fragment key={stockName}>
+                          {/* שורה מקובצת */}
+                          <tr 
+                            className={`${isEditMode ? 'editable-row' : ''} ${isExpanded ? 'summary-row-expanded' : ''}`}
+                          >
+                            <td 
+                              onClick={() => handleCellClick(stocks[0].id, 'stockName', 'american')}
+                              className={isEditMode ? 'editable-cell' : ''}
+                            >
+                              <button 
+                                onClick={() => toggleGroup(stockName, 'american')}
+                                className="expand-button"
+                                style={{ marginRight: '8px', background: 'none', border: 'none', cursor: 'pointer' }}
+                              >
+                                {isExpanded ? '▼' : '▶'}
+                              </button>
+                              {stockName}
+                            </td>
+                            <td>פתח קיבוץ</td>
+                            <td>פתח קיבוץ</td>
+                            <td>{summary.totalQuantity}</td>
+                            <td>{formatPriceWithSign(totalPurchaseUSD)} $</td>
+                            <td>{formatPriceWithSign(totalPurchaseILS)} ₪</td>
+                            <td>פתח קיבוץ</td>
+                            <td>{formatPrice(stocks[0].currentExchangeRate || stocks[0].exchangeRate || 0)}</td>
+                            <td>{formatPriceWithSign(averageCurrentPriceUSD)} $</td>
+                            <td>{formatPriceWithSign(totalCurrentValueUSD)} $</td>
+                            <td>{formatPriceWithSign(totalCurrentValueILS)} ₪</td>
+                            <td className={profitPercentage >= 0 ? 'profit-positive' : 'profit-negative'}>
+                              {profitPercentage}%
+                            </td>
+                            <td className={(stocks[0].dailyChangePercent || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
+                              {stocks[0].dailyChangePercent ? stocks[0].dailyChangePercent.toFixed(2) : '0.00'}%
+                            </td>
+                            <td className={((totalPurchaseUSD * (stocks[0].exchangeRate || 0)) - (totalCurrentValueUSD * (stocks[0].currentExchangeRate || stocks[0].exchangeRate || 0))) >= 0 ? 'profit-positive' : 'profit-negative'}>
+                              {formatPriceWithSign((totalPurchaseUSD * (stocks[0].exchangeRate || 0)) - (totalCurrentValueUSD * (stocks[0].currentExchangeRate || stocks[0].exchangeRate || 0)))} ₪
+                            </td>
+                            {isEditMode && <td></td>}
+                          </tr>
+                          
+                          {/* שורות מפורטות */}
+                          {isExpanded && stocks.map((stock) => {
+                            const totalPurchaseUSD = (stock.purchasePrice || 0) * (stock.quantity || 0);
+                            const totalPurchaseILS = totalPurchaseUSD * (stock.exchangeRate || 0);
+                            const totalCurrentValueUSD = (stock.currentPrice || 0) * (stock.quantity || 0);
+                            const currentExchangeRate = stock.currentExchangeRate || stock.exchangeRate || 0;
+                            const totalCurrentValueILS = totalCurrentValueUSD * currentExchangeRate;
+                            const profitPercentage = calculateProfitPercentage(stock.purchasePrice || 0, stock.currentPrice || 0);
+                            
+                            // חישוב השפעת שער החליפין
+                            const exchangeRateImpact = (totalPurchaseUSD * stock.exchangeRate) - (totalCurrentValueUSD * currentExchangeRate);
+                            
+                            return (
+                              <tr 
+                                key={stock.id}
+                                className={`${isEditMode ? 'editable-row' : ''} detail-row`}
+                                style={{ backgroundColor: '#f8f9fa' }}
+                              >
+                                <td 
+                                  onClick={() => handleCellClick(stock.id, 'stockName', 'american')}
+                                  className={isEditMode ? 'editable-cell' : ''}
+                                  style={{ paddingLeft: '20px' }}
+                                >
+                                  {editingField === `${stock.id}-stockName` ? (
+                                    <input
+                                      type="text"
+                                      value={stock.stockName}
+                                      onChange={(e) => handleInlineEdit(stock.id, 'stockName', e.target.value, 'american')}
+                                      onBlur={finishInlineEdit}
+                                      onKeyPress={(e) => handleKeyPress(e, stock.id, 'stockName', 'american')}
+                                      autoFocus
+                                    />
+                                  ) : (
+                                    stock.stockName
+                                  )}
+                                </td>
+                                <td 
+                                  onClick={() => handleCellClick(stock.id, 'purchaseDate', 'american')}
+                                  className={isEditMode ? 'editable-cell' : ''}
+                                >
+                                  {editingField === `${stock.id}-purchaseDate` ? (
+                                    <input
+                                      type="date"
+                                      value={stock.purchaseDate}
+                                      onChange={(e) => handleInlineEdit(stock.id, 'purchaseDate', e.target.value, 'american')}
+                                      onBlur={finishInlineEdit}
+                                      onKeyPress={(e) => handleKeyPress(e, stock.id, 'purchaseDate', 'american')}
+                                      autoFocus
+                                    />
+                                  ) : (
+                                    formatDate(stock.purchaseDate)
+                                  )}
+                                </td>
+                                <td 
+                                  onClick={() => handleCellClick(stock.id, 'purchasePrice', 'american')}
+                                  className={isEditMode ? 'editable-cell' : ''}
+                                >
+                                  {editingField === `${stock.id}-purchasePrice` ? (
+                                    <input
+                                      type="number"
+                                      value={stock.purchasePrice}
+                                      onChange={(e) => handleInlineEdit(stock.id, 'purchasePrice', parseFloat(e.target.value), 'american')}
+                                      onBlur={finishInlineEdit}
+                                      onKeyPress={(e) => handleKeyPress(e, stock.id, 'purchasePrice', 'american')}
+                                      autoFocus
+                                      step="0.01"
+                                    />
+                                  ) : (
+                                    formatPriceWithSign(stock.purchasePrice) + ' $'
+                                  )}
+                                </td>
+                                <td 
+                                  onClick={() => handleCellClick(stock.id, 'quantity', 'american')}
+                                  className={isEditMode ? 'editable-cell' : ''}
+                                >
+                                  {editingField === `${stock.id}-quantity` ? (
+                                    <input
+                                      type="number"
+                                      value={stock.quantity}
+                                      onChange={(e) => handleInlineEdit(stock.id, 'quantity', parseInt(e.target.value), 'american')}
+                                      onBlur={finishInlineEdit}
+                                      onKeyPress={(e) => handleKeyPress(e, stock.id, 'quantity', 'american')}
+                                      autoFocus
+                                      min="1"
+                                    />
+                                  ) : (
+                                    stock.quantity
+                                  )}
+                                </td>
+                                <td>{formatPriceWithSign(totalPurchaseUSD)} $</td>
+                                <td>{formatPriceWithSign(totalPurchaseILS)} ₪</td>
+                                <td 
+                                  onClick={() => handleCellClick(stock.id, 'exchangeRate', 'american')}
+                                  className={isEditMode ? 'editable-cell' : ''}
+                                >
+                                  {editingField === `${stock.id}-exchangeRate` ? (
+                                    <input
+                                      type="number"
+                                      value={stock.exchangeRate}
+                                      onChange={(e) => handleInlineEdit(stock.id, 'exchangeRate', parseFloat(e.target.value), 'american')}
+                                      onBlur={finishInlineEdit}
+                                      onKeyPress={(e) => handleKeyPress(e, stock.id, 'exchangeRate', 'american')}
+                                      autoFocus
+                                      step="0.0001"
+                                    />
+                                  ) : (
+                                    formatPrice(stock.exchangeRate)
+                                  )}
+                                </td>
+                                <td>{formatPrice(currentExchangeRate)}</td>
+                                <td>{formatPriceWithSign(stock.currentPrice)} $</td>
+                                <td>{formatPriceWithSign(totalCurrentValueUSD)} $</td>
+                                <td>{formatPriceWithSign(totalCurrentValueILS)} ₪</td>
+                                <td className={profitPercentage >= 0 ? 'profit-positive' : 'profit-negative'}>
+                                  {profitPercentage}%
+                                </td>
+                                <td className={(stock.dailyChangePercent || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
+                                  {stock.dailyChangePercent ? stock.dailyChangePercent.toFixed(2) : '0.00'}%
+                                </td>
+                                <td className={exchangeRateImpact >= 0 ? 'profit-positive' : 'profit-negative'}>
+                                  {formatPriceWithSign(exchangeRateImpact)} ₪
+                                </td>
+                                {isEditMode && (
+                                  <td>
+                                    <button 
+                                      onClick={() => handleDelete(stock.id, 'american')}
+                                      className="delete-button"
+                                    >
+                                      מחק
+                                    </button>
+                                  </td>
+                                )}
+                              </tr>
+                            );
+                          })}
+                        </React.Fragment>
                       );
                     })}
                   </tbody>
