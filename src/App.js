@@ -37,19 +37,10 @@ function App() {
     const interval = setInterval(async () => {
       // עדכון מניות ישראליות
       if (israeliStocks.length > 0) {
-        console.log(`🔄 מעדכן מניות ישראליות (${israeliStocks.length} מניות)`);
         const updatedIsraeliStocks = [];
         for (const stock of israeliStocks) {
-          const result = await fetchIsraeliStockPrice(stock.stockName);
-          if (result !== null) {
-            updatedIsraeliStocks.push({
-              ...stock,
-              currentPrice: result.price || result,
-              dailyChangePercent: result.changePercent || 0
-            });
-          } else {
-            updatedIsraeliStocks.push(stock);
-          }
+          // מנייה ישראלית - לא מעדכנים מחיר
+          updatedIsraeliStocks.push(stock);
         }
         setIsraeliStocks(updatedIsraeliStocks);
       }
@@ -153,273 +144,8 @@ function App() {
     }
   };
 
-  // פונקציה לחיפוש אחוז שינוי יומי ב-HTML של bizportal.co.il
-  const parseDailyChange = async (html) => {
-    try {
-      console.log(`🔍 מחפש אחוז שינוי יומי בעמוד bizportal.co.il...`);
-      
-      // דפוסים לחיפוש אחוז שינוי יומי
-      const changePatterns = [
-        // חיפוש ספציפי באחוז שינוי יומי - עדיפות ראשונה
-        /0%/g,
-        // eslint-disable-next-line no-useless-escape
-        /([+-]?[0-9]+\.?[0-9]*)\s*%/g,
-        // eslint-disable-next-line no-useless-escape
-        /([+-]?[0-9]+\.?[0-9]*)%/g,
-        
-        // חיפוש עם סימנים
-        // eslint-disable-next-line no-useless-escape
-        /([+-]?[0-9]+\.?[0-9]*)\s*%?\s*([+-])/g,
-        
-        // חיפוש כללי
-        // eslint-disable-next-line no-useless-escape
-        /([+-]?[0-9]+\.?[0-9]*)/g
-      ];
-      
-      for (const pattern of changePatterns) {
-        const match = html.match(pattern);
-        if (match) {
-          // טיפול מיוחד לדפוס הראשון (0%)
-          if (pattern.source === '0%') {
-            console.log(`✅ אחוז שינוי 0% נמצא ב-bizportal.co.il`);
-            return 0;
-          }
-          
-          // טיפול בדפוסים אחרים
-          if (match[1]) {
-            const rawChange = match[1].trim();
-            console.log(`📊 אחוז שינוי גולמי שנמצא: "${rawChange}"`);
-            
-            // eslint-disable-next-line no-useless-escape
-            const cleanChange = rawChange.replace(/[^\d,\.+-]/g, '');
-            console.log(`🧹 אחוז שינוי אחרי ניקוי: "${cleanChange}"`);
-            
-            if (cleanChange && cleanChange !== '0' && cleanChange !== '0.00') {
-              const changePercent = parseFloat(cleanChange.replace(',', ''));
-              console.log(`📊 אחוז שינוי סופי: ${changePercent}%`);
-              
-              if (changePercent >= -100 && changePercent <= 100) {
-                console.log(`✅ אחוז שינוי תקין נמצא ב-bizportal.co.il: ${changePercent}%`);
-                return changePercent;
-              } else {
-                console.log(`❌ אחוז שינוי לא תקין: ${changePercent}%`);
-              }
-            } else if (cleanChange === '0' || cleanChange === '0.00') {
-              // אם מצאנו 0%, זה גם תקין
-              console.log(`✅ אחוז שינוי 0% נמצא ב-bizportal.co.il`);
-              return 0;
-            }
-          }
-        }
-      }
-      
-      console.log(`❌ לא נמצא אחוז שינוי יומי ב-HTML של bizportal.co.il`);
-      return 0; // ברירת מחדל
-    } catch (error) {
-      console.log(`❌ שגיאה בחיפוש אחוז שינוי: ${error}`);
-      return 0;
-    }
-  };
 
-  // פונקציה לחיפוש מחיר ב-HTML של bizportal.co.il
-  const parseBizportalPrice = async (html) => {
-    try {
-      console.log(`🔍 מחפש מחיר בעמוד bizportal.co.il...`);
-      
-      // דפוסים לחיפוש מחיר ב-bizportal - מחפש את המחיר הנכון של המנייה
-      const pricePatterns = [
-        // חיפוש ספציפי במחיר המוצג ליד "שווי יחידה" או "0%"
-        // eslint-disable-next-line no-useless-escape
-        /שווי יחידה[^>]*>([0-9,\.]+)</i,
-        // eslint-disable-next-line no-useless-escape
-        /0%[^>]*>([0-9,\.]+)</i,
-        // eslint-disable-next-line no-useless-escape
-        /נכון ל[^>]*>([0-9,\.]+)</i,
-        
-        // חיפוש במחיר הגדול המוצג בעמוד - רק מספרים עם פסיקים
-        /([0-9]{3}(?:,[0-9]{3})*)/g,
-        /([0-9]{4}(?:,[0-9]{3})*)/g,
-        /([0-9]{5}(?:,[0-9]{3})*)/g,
-        
-        // חיפוש כללי במחיר
-        /([0-9]+(?:,[0-9]{3})*)/g,
-        // eslint-disable-next-line no-useless-escape
-        /([0-9]+(?:\.?[0-9]*))/g
-      ];
-      
-      for (let i = 0; i < pricePatterns.length; i++) {
-        const pattern = pricePatterns[i];
-        console.log(`🔍 מנסה דפוס ${i + 1}/${pricePatterns.length}: ${pattern}`);
-        
-        const match = html.match(pattern);
-        if (match && match[1]) {
-          const rawPrice = match[1].trim();
-          console.log(`💰 מחיר גולמי שנמצא עם דפוס ${i + 1}: "${rawPrice}"`);
-          
-          // eslint-disable-next-line no-useless-escape
-          const cleanPrice = rawPrice.replace(/[^\d,\.]/g, '');
-          console.log(`🧹 מחיר אחרי ניקוי: "${cleanPrice}"`);
-          
-          if (cleanPrice && cleanPrice !== '0' && cleanPrice !== '0.00') {
-            const price = parseFloat(cleanPrice.replace(',', ''));
-            console.log(`📊 מחיר סופי: ${price}`);
-            
-            if (price > 100 && price < 1000000) {
-              console.log(`✅ מחיר תקין נמצא ב-bizportal.co.il: ${price}`);
-              console.log(`💰 מחיר באגורות: ${price}`);
-              console.log(`💰 מחיר בשקלים: ${price / 100}`);
-              
-              // חפש אחוז שינוי יומי
-              const changePercent = await parseDailyChange(html);
-              console.log(`📊 אחוז שינוי יומי: ${changePercent}%`);
-              
-              console.log(`🎯 מחזיר מחיר: ${price / 100}`);
-              return {
-                price: price / 100, // המרה מאגורות לשקלים
-                changePercent: changePercent
-              };
-            } else {
-              console.log(`❌ מחיר לא תקין (צריך להיות בין 100-1,000,000): ${price}`);
-            }
-          }
-        } else {
-          console.log(`❌ לא נמצא עם דפוס ${i + 1}`);
-        }
-      }
-      
-      console.log(`❌ לא נמצא מחיר ב-HTML של bizportal.co.il`);
-      return null;
-    } catch (error) {
-      console.log(`❌ שגיאה בחיפוש מחיר: ${error}`);
-      return null;
-    }
-  };
 
-  // פונקציה לחיפוש מחיר מנייה ישראלית
-  const fetchIsraeliStockPrice = async (stockInput) => {
-    try {
-      console.log(`🚀 מתחיל חיפוש מחיר עבור: ${stockInput}`);
-      
-      // בדיקה אם הקלט הוא מספר או שם
-      const isNumber = /^\d+$/.test(stockInput.trim());
-      console.log(`📊 סוג קלט: ${isNumber ? 'מספר' : 'שם'}`);
-      
-      // רשימת URLs אפשריים עבור bizportal.co.il
-      const possibleUrls = [
-        `https://www.bizportal.co.il/tradedfund/quote/performance/${stockInput}`,
-        `https://bizportal.co.il/tradedfund/quote/performance/${stockInput}`,
-        `https://www.bizportal.co.il/stock/quote/performance/${stockInput}`,
-        `https://bizportal.co.il/stock/quote/performance/${stockInput}`,
-        `https://www.bizportal.co.il/search?q=${stockInput}`,
-        `https://bizportal.co.il/search?q=${stockInput}`
-      ];
-      
-      // רשימת proxies
-      const proxies = [
-        'https://api.allorigins.win/get?url=',
-        'https://cors-anywhere.herokuapp.com/',
-        'https://corsproxy.io/?',
-        'https://api.allorigins.win/raw?url='
-      ];
-      
-      for (let urlIndex = 0; urlIndex < possibleUrls.length; urlIndex++) {
-        const url = possibleUrls[urlIndex];
-        console.log(`🔍 מנסה URL ${urlIndex + 1}/${possibleUrls.length}: ${url}`);
-        
-        for (let proxyIndex = 0; proxyIndex < proxies.length; proxyIndex++) {
-          const proxy = proxies[proxyIndex];
-          console.log(`🔄 מנסה עם proxy ${proxyIndex + 1}/${proxies.length}: ${proxy}`);
-          
-          try {
-            let response;
-            if (proxy === 'https://api.allorigins.win/get?url=') {
-              response = await fetch(`${proxy}${encodeURIComponent(url)}`);
-              const data = await response.json();
-              const html = data.contents;
-              console.log(`📡 תגובה דרך ${proxy}: ${response.status}`);
-              console.log(`📋 HTML התקבל דרך ${proxy}: ${html.length} תווים`);
-              
-              if (html.includes('bizportal.co.il') && html.length > 1000) {
-                console.log(`✅ זה נראה כמו עמוד של bizportal.co.il, מחפש מחיר...`);
-                const result = await parseBizportalPrice(html);
-                if (result) return result;
-              } else {
-                console.log(`❌ זה לא עמוד של bizportal.co.il או עמוד קצר מדי`);
-              }
-            } else if (proxy === 'https://cors-anywhere.herokuapp.com/') {
-              response = await fetch(`${proxy}${url}`, {
-                headers: {
-                  'X-Requested-With': 'XMLHttpRequest'
-                }
-              });
-              console.log(`📡 תגובה דרך ${proxy}: ${response.status}`);
-              
-              if (response.ok) {
-                const html = await response.text();
-                console.log(`📋 HTML התקבל דרך ${proxy}: ${html.length} תווים`);
-                
-                if (html.includes('bizportal.co.il') && html.length > 1000) {
-                  console.log(`✅ זה נראה כמו עמוד של bizportal.co.il, מחפש מחיר...`);
-                  const result = await parseBizportalPrice(html);
-                  if (result) return result;
-                } else {
-                  console.log(`❌ זה לא עמוד של bizportal.co.il או עמוד קצר מדי`);
-                }
-              } else {
-                console.log(`❌ שגיאה עם proxy ${proxyIndex + 1}: ${response.status} ${response.statusText}`);
-              }
-            } else if (proxy === 'https://corsproxy.io/?') {
-              response = await fetch(`${proxy}${encodeURIComponent(url)}`);
-              console.log(`📡 תגובה דרך ${proxy}: ${response.status}`);
-              
-              if (response.ok) {
-                const html = await response.text();
-                console.log(`📋 HTML התקבל דרך ${proxy}: ${html.length} תווים`);
-                
-                if (html.includes('bizportal.co.il') && html.length > 1000) {
-                  console.log(`✅ זה נראה כמו עמוד של bizportal.co.il, מחפש מחיר...`);
-                  const result = await parseBizportalPrice(html);
-                  if (result) return result;
-                } else {
-                  console.log(`❌ זה לא עמוד של bizportal.co.il או עמוד קצר מדי`);
-                }
-              } else {
-                console.log(`❌ שגיאה עם proxy ${proxyIndex + 1}: ${response.status} ${response.statusText}`);
-              }
-            } else if (proxy === 'https://api.allorigins.win/raw?url=') {
-              response = await fetch(`${proxy}${encodeURIComponent(url)}`);
-              console.log(`📡 תגובה דרך ${proxy}: ${response.status}`);
-              
-              if (response.ok) {
-                const html = await response.text();
-                console.log(`📋 HTML התקבל דרך ${proxy}: ${html.length} תווים`);
-                
-                if (html.includes('bizportal.co.il') && html.length > 1000) {
-                  console.log(`✅ זה נראה כמו עמוד של bizportal.co.il, מחפש מחיר...`);
-                  const result = await parseBizportalPrice(html);
-                  if (result) return result;
-                } else {
-                  console.log(`❌ זה לא עמוד של bizportal.co.il או עמוד קצר מדי`);
-                }
-              } else {
-                console.log(`❌ שגיאה עם proxy ${proxyIndex + 1}: ${response.status} ${response.statusText}`);
-              }
-            }
-          } catch (error) {
-            console.log(`❌ שגיאה עם proxy ${proxyIndex + 1}: ${error.message}`);
-          }
-        }
-        
-        console.log(`❌ ה-URL ${urlIndex + 1} לא עובד`);
-      }
-      
-      console.log(`❌ כל ה-URLs נכשלו`);
-      return null;
-    } catch (error) {
-      console.log(`❌ שגיאה בקבלת נתונים: ${error}`);
-      return null;
-    }
-  };
 
   const handleAddInfo = () => {
     setShowForm(true);
@@ -448,17 +174,9 @@ function App() {
         dailyChangePercent = priceData.changePercent || 0;
       }
     } else if (formData.exchange === 'israeli') {
-      console.log(`🇮🇱 מוסיף מנייה ישראלית: ${formData.stockName}`);
-      const result = await fetchIsraeliStockPrice(formData.stockName.trim());
-      console.log(`💰 תוצאה שהתקבלה:`, result);
-      if (result) {
-        currentPrice = result.price || result;
-        dailyChangePercent = result.changePercent || 0;
-        console.log(`✅ מחיר נוסף למנייה: ${currentPrice}`);
-        console.log(`✅ אחוז שינוי יומי נוסף למנייה: ${dailyChangePercent}%`);
-      } else {
-        console.log(`❌ לא התקבל מחיר עבור מנייה ישראלית`);
-      }
+      // מנייה ישראלית - לא מעדכנים מחיר
+      currentPrice = 0;
+      dailyChangePercent = 0;
     }
     
     // יצירת אובייקט עם הנתונים
@@ -528,11 +246,9 @@ function App() {
         dailyChangePercent = priceData.changePercent || 0;
       }
     } else if (formData.exchange === 'israeli') {
-      const result = await fetchIsraeliStockPrice(formData.stockName.trim());
-      if (result) {
-        currentPrice = result.price || result;
-        dailyChangePercent = result.changePercent || 0;
-      }
+      // מנייה ישראלית - לא מעדכנים מחיר
+      currentPrice = 0;
+      dailyChangePercent = 0;
     }
     
     const updatedStock = {
