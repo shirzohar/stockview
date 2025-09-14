@@ -732,6 +732,16 @@ function App() {
                 {showAmericanColumns ? 'הסתר עמודות אמריקאיות' : 'הצג עמודות אמריקאיות'}
               </button>
             </div>
+            
+            {/* הודעה על מצב עריכה */}
+            {isEditMode && (
+              <div className="edit-mode-notice">
+                <div className="notice-content">
+                  <span className="notice-icon">✏️</span>
+                  <span className="notice-text">מצב עריכה פעיל - לחץ על תאים לעריכה</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* טבלת בורסה ישראלית */}
@@ -1038,17 +1048,17 @@ function App() {
                       <th>מחיר קנייה</th>
                       <th>כמות</th>
                       <th>סה"כ רכישה בדולר</th>
-                      <th>סה"כ רכישה בשקל</th>
-                      <th>שער חליפין ביום הקנייה</th>
-                      <th>שער חליפין היום</th>
+                      {showAmericanColumns && <th>סה"כ רכישה בשקל</th>}
+                      {showAmericanColumns && <th>שער חליפין ביום הקנייה</th>}
+                      {showAmericanColumns && <th>שער חליפין היום</th>}
                       <th>מחיר נוכחי</th>
                       <th>סה"כ שווי בדולר</th>
-                      <th>סה"כ שווי בש"ח</th>
+                      {showAmericanColumns && <th>סה"כ שווי בש"ח</th>}
                       <th>סה"כ רווח ($)</th>
-                      <th>סה"כ רווח (₪)</th>
+                      {showAmericanColumns && <th>סה"כ רווח (₪)</th>}
                       <th>אחוז רווח</th>
                       <th>אחוז שינוי יומי</th>
-                      <th>השפעת שער חליפין</th>
+                      {showAmericanColumns && <th>השפעת שער חליפין</th>}
                       {isEditMode && <th>פעולות</th>}
                     </tr>
                   </thead>
@@ -1149,44 +1159,50 @@ function App() {
                               )}
                             </td>
                             <td>{formatPriceWithSign(totalPurchaseUSD)} $</td>
-                            <td>{formatPriceWithSign(totalPurchaseILS)} ₪</td>
-                            <td 
-                              onClick={() => handleCellClick(stock.id, 'exchangeRate', 'american')}
-                              className={isEditMode ? 'editable-cell' : ''}
-                            >
-                              {editingField === `${stock.id}-exchangeRate` ? (
-                                <input
-                                  type="number"
-                                  value={stock.exchangeRate}
-                                  onChange={(e) => handleInlineEdit(stock.id, 'exchangeRate', parseFloat(e.target.value), 'american')}
-                                  onBlur={finishInlineEdit}
-                                  onKeyPress={(e) => handleKeyPress(e, stock.id, 'exchangeRate', 'american')}
-                                  autoFocus
-                                  step="0.0001"
-                                />
-                              ) : (
-                                formatPrice(stock.exchangeRate)
-                              )}
-                            </td>
-                            <td>{formatPrice(currentExchangeRate)}</td>
+                            {showAmericanColumns && <td>{formatPriceWithSign(totalPurchaseILS)} ₪</td>}
+                            {showAmericanColumns && (
+                              <td 
+                                onClick={() => handleCellClick(stock.id, 'exchangeRate', 'american')}
+                                className={isEditMode ? 'editable-cell' : ''}
+                              >
+                                {editingField === `${stock.id}-exchangeRate` ? (
+                                  <input
+                                    type="number"
+                                    value={stock.exchangeRate}
+                                    onChange={(e) => handleInlineEdit(stock.id, 'exchangeRate', parseFloat(e.target.value), 'american')}
+                                    onBlur={finishInlineEdit}
+                                    onKeyPress={(e) => handleKeyPress(e, stock.id, 'exchangeRate', 'american')}
+                                    autoFocus
+                                    step="0.0001"
+                                  />
+                                ) : (
+                                  formatPrice(stock.exchangeRate)
+                                )}
+                              </td>
+                            )}
+                            {showAmericanColumns && <td>{formatPrice(currentExchangeRate)}</td>}
                             <td>{formatPriceWithSign(stock.currentPrice)} $</td>
                             <td>{formatPriceWithSign(totalCurrentValueUSD)} $</td>
-                            <td>{formatPriceWithSign(totalCurrentValueILS)} ₪</td>
+                            {showAmericanColumns && <td>{formatPriceWithSign(totalCurrentValueILS)} ₪</td>}
                             <td className={profitUSD >= 0 ? 'profit-positive' : 'profit-negative'}>
                               {formatPriceWithSign(profitUSD)} $
                             </td>
-                            <td className={profitILS >= 0 ? 'profit-positive' : 'profit-negative'}>
-                              {formatPriceWithSign(profitILS)} ₪
-                            </td>
+                            {showAmericanColumns && (
+                              <td className={profitILS >= 0 ? 'profit-positive' : 'profit-negative'}>
+                                {formatPriceWithSign(profitILS)} ₪
+                              </td>
+                            )}
                             <td className={profitPercentage >= 0 ? 'profit-positive' : 'profit-negative'}>
                               {profitPercentage}%
                             </td>
                             <td className={(stock.dailyChangePercent || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
                               {stock.dailyChangePercent ? stock.dailyChangePercent.toFixed(2) : '0.00'}%
                             </td>
-                            <td className={exchangeRateImpact >= 0 ? 'profit-positive' : 'profit-negative'}>
-                              {formatPriceWithSign(exchangeRateImpact)} ₪
-                            </td>
+                            {showAmericanColumns && (
+                              <td className={exchangeRateImpact >= 0 ? 'profit-positive' : 'profit-negative'}>
+                                {formatPriceWithSign(exchangeRateImpact)} ₪
+                              </td>
+                            )}
                             {isEditMode && (
                               <td>
                                 <button 
@@ -1251,31 +1267,35 @@ function App() {
                               </button>
                               {stockName}
                             </td>
-                            <td>פתח קיבוץ</td>
-                            <td>פתח קיבוץ</td>
+                            <td>{isExpanded ? '' : 'פתח קיבוץ'}</td>
+                            <td>{isExpanded ? '' : 'פתח קיבוץ'}</td>
                             <td>{summary.totalQuantity}</td>
                             <td>{formatPriceWithSign(totalPurchaseUSD)} $</td>
-                            <td>{formatPriceWithSign(totalPurchaseILS)} ₪</td>
-                            <td>פתח קיבוץ</td>
-                            <td>{formatPrice(stocks[0].currentExchangeRate || stocks[0].exchangeRate || 0)}</td>
+                            {showAmericanColumns && <td>{formatPriceWithSign(totalPurchaseILS)} ₪</td>}
+                            {showAmericanColumns && <td>{isExpanded ? '' : 'פתח קיבוץ'}</td>}
+                            {showAmericanColumns && <td>{formatPrice(stocks[0].currentExchangeRate || stocks[0].exchangeRate || 0)}</td>}
                             <td>{formatPriceWithSign(averageCurrentPriceUSD)} $</td>
                             <td>{formatPriceWithSign(totalCurrentValueUSD)} $</td>
-                            <td>{formatPriceWithSign(totalCurrentValueILS)} ₪</td>
+                            {showAmericanColumns && <td>{formatPriceWithSign(totalCurrentValueILS)} ₪</td>}
                             <td className={totalProfitUSD >= 0 ? 'profit-positive' : 'profit-negative'}>
                               {formatPriceWithSign(totalProfitUSD)} $
                             </td>
-                            <td className={totalProfitILS >= 0 ? 'profit-positive' : 'profit-negative'}>
-                              {formatPriceWithSign(totalProfitILS)} ₪
-                            </td>
+                            {showAmericanColumns && (
+                              <td className={totalProfitILS >= 0 ? 'profit-positive' : 'profit-negative'}>
+                                {formatPriceWithSign(totalProfitILS)} ₪
+                              </td>
+                            )}
                             <td className={profitPercentage >= 0 ? 'profit-positive' : 'profit-negative'}>
                               {profitPercentage}%
                             </td>
                             <td className={(stocks[0].dailyChangePercent || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
                               {stocks[0].dailyChangePercent ? stocks[0].dailyChangePercent.toFixed(2) : '0.00'}%
                             </td>
-                            <td className={totalExchangeRateImpact >= 0 ? 'profit-positive' : 'profit-negative'}>
-                              {formatPriceWithSign(totalExchangeRateImpact)} ₪
-                            </td>
+                            {showAmericanColumns && (
+                              <td className={totalExchangeRateImpact >= 0 ? 'profit-positive' : 'profit-negative'}>
+                                {formatPriceWithSign(totalExchangeRateImpact)} ₪
+                              </td>
+                            )}
                             {isEditMode && <td></td>}
                           </tr>
                           
@@ -1372,44 +1392,50 @@ function App() {
                                   )}
                                 </td>
                                 <td>{formatPriceWithSign(totalPurchaseUSD)} $</td>
-                                <td>{formatPriceWithSign(totalPurchaseILS)} ₪</td>
-                                <td 
-                                  onClick={() => handleCellClick(stock.id, 'exchangeRate', 'american')}
-                                  className={isEditMode ? 'editable-cell' : ''}
-                                >
-                                  {editingField === `${stock.id}-exchangeRate` ? (
-                                    <input
-                                      type="number"
-                                      value={stock.exchangeRate}
-                                      onChange={(e) => handleInlineEdit(stock.id, 'exchangeRate', parseFloat(e.target.value), 'american')}
-                                      onBlur={finishInlineEdit}
-                                      onKeyPress={(e) => handleKeyPress(e, stock.id, 'exchangeRate', 'american')}
-                                      autoFocus
-                                      step="0.0001"
-                                    />
-                                  ) : (
-                                    formatPrice(stock.exchangeRate)
-                                  )}
-                                </td>
-                                <td>{formatPrice(currentExchangeRate)}</td>
+                                {showAmericanColumns && <td>{formatPriceWithSign(totalPurchaseILS)} ₪</td>}
+                                {showAmericanColumns && (
+                                  <td 
+                                    onClick={() => handleCellClick(stock.id, 'exchangeRate', 'american')}
+                                    className={isEditMode ? 'editable-cell' : ''}
+                                  >
+                                    {editingField === `${stock.id}-exchangeRate` ? (
+                                      <input
+                                        type="number"
+                                        value={stock.exchangeRate}
+                                        onChange={(e) => handleInlineEdit(stock.id, 'exchangeRate', parseFloat(e.target.value), 'american')}
+                                        onBlur={finishInlineEdit}
+                                        onKeyPress={(e) => handleKeyPress(e, stock.id, 'exchangeRate', 'american')}
+                                        autoFocus
+                                        step="0.0001"
+                                      />
+                                    ) : (
+                                      formatPrice(stock.exchangeRate)
+                                    )}
+                                  </td>
+                                )}
+                                {showAmericanColumns && <td>{formatPrice(currentExchangeRate)}</td>}
                                 <td>{formatPriceWithSign(stock.currentPrice)} $</td>
                                 <td>{formatPriceWithSign(totalCurrentValueUSD)} $</td>
-                                <td>{formatPriceWithSign(totalCurrentValueILS)} ₪</td>
+                                {showAmericanColumns && <td>{formatPriceWithSign(totalCurrentValueILS)} ₪</td>}
                                 <td className={profitUSD >= 0 ? 'profit-positive' : 'profit-negative'}>
                                   {formatPriceWithSign(profitUSD)} $
                                 </td>
-                                <td className={profitILS >= 0 ? 'profit-positive' : 'profit-negative'}>
-                                  {formatPriceWithSign(profitILS)} ₪
-                                </td>
+                                {showAmericanColumns && (
+                                  <td className={profitILS >= 0 ? 'profit-positive' : 'profit-negative'}>
+                                    {formatPriceWithSign(profitILS)} ₪
+                                  </td>
+                                )}
                                 <td className={profitPercentage >= 0 ? 'profit-positive' : 'profit-negative'}>
                                   {profitPercentage}%
                                 </td>
                                 <td className={(stock.dailyChangePercent || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
                                   {stock.dailyChangePercent ? stock.dailyChangePercent.toFixed(2) : '0.00'}%
                                 </td>
-                                <td className={exchangeRateImpact >= 0 ? 'profit-positive' : 'profit-negative'}>
-                                  {formatPriceWithSign(exchangeRateImpact)} ₪
-                                </td>
+                                {showAmericanColumns && (
+                                  <td className={exchangeRateImpact >= 0 ? 'profit-positive' : 'profit-negative'}>
+                                    {formatPriceWithSign(exchangeRateImpact)} ₪
+                                  </td>
+                                )}
                                 {isEditMode && (
                                   <td>
                                     <button 

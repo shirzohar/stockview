@@ -68,6 +68,61 @@ body {
   flex-wrap: wrap;
 }
 
+/* Edit mode notice */
+.edit-mode-notice {
+  background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+  border: 2px solid #ff5252;
+  border-radius: 12px;
+  padding: 15px 25px;
+  margin: 20px auto;
+  max-width: 500px;
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+  animation: pulse 2s infinite;
+}
+
+.notice-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: white;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.notice-icon {
+  font-size: 20px;
+  animation: bounce 1s infinite;
+}
+
+.notice-text {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+  }
+  50% {
+    box-shadow: 0 6px 20px rgba(255, 107, 107, 0.5);
+  }
+  100% {
+    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+  }
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-3px);
+  }
+  60% {
+    transform: translateY(-2px);
+  }
+}
+
 /* Expand button styles */
 .expand-button {
   font-size: 14px;
