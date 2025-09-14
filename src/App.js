@@ -223,9 +223,13 @@ function App() {
   // פונקציה למחיקת מנייה
   const handleDelete = (id, exchange) => {
     if (exchange === 'israeli') {
-      setIsraeliStocks(israeliStocks.filter(stock => stock.id !== id));
+      const updatedIsraeliStocks = israeliStocks.filter(stock => stock.id !== id);
+      setIsraeliStocks(updatedIsraeliStocks);
+      saveToLocalStorage(updatedIsraeliStocks, americanStocks);
     } else {
-      setAmericanStocks(americanStocks.filter(stock => stock.id !== id));
+      const updatedAmericanStocks = americanStocks.filter(stock => stock.id !== id);
+      setAmericanStocks(updatedAmericanStocks);
+      saveToLocalStorage(israeliStocks, updatedAmericanStocks);
     }
   };
 
@@ -268,13 +272,17 @@ function App() {
     };
     
     if (formData.exchange === 'israeli') {
-      setIsraeliStocks(israeliStocks.map(stock => 
+      const updatedIsraeliStocks = israeliStocks.map(stock => 
         stock.id === editingStock.id ? updatedStock : stock
-      ));
+      );
+      setIsraeliStocks(updatedIsraeliStocks);
+      saveToLocalStorage(updatedIsraeliStocks, americanStocks);
     } else {
-      setAmericanStocks(americanStocks.map(stock => 
+      const updatedAmericanStocks = americanStocks.map(stock => 
         stock.id === editingStock.id ? updatedStock : stock
-      ));
+      );
+      setAmericanStocks(updatedAmericanStocks);
+      saveToLocalStorage(israeliStocks, updatedAmericanStocks);
     }
     
     setIsEditMode(false);
@@ -307,13 +315,17 @@ function App() {
   // פונקציה לעריכה inline
   const handleInlineEdit = (id, field, value, exchange) => {
     if (exchange === 'israeli') {
-      setIsraeliStocks(israeliStocks.map(stock => 
+      const updatedIsraeliStocks = israeliStocks.map(stock => 
         stock.id === id ? { ...stock, [field]: value } : stock
-      ));
+      );
+      setIsraeliStocks(updatedIsraeliStocks);
+      saveToLocalStorage(updatedIsraeliStocks, americanStocks);
     } else {
-      setAmericanStocks(americanStocks.map(stock => 
+      const updatedAmericanStocks = americanStocks.map(stock => 
         stock.id === id ? { ...stock, [field]: value } : stock
-      ));
+      );
+      setAmericanStocks(updatedAmericanStocks);
+      saveToLocalStorage(israeliStocks, updatedAmericanStocks);
     }
   };
 
