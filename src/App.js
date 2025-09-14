@@ -713,7 +713,7 @@ function App() {
           
           <div className="main-buttons-container">
             <button className="add-info-button" onClick={handleAddInfo}>
-              לחץ כאן כדי להוסיף מידע
+              הוספת מידע חדש
             </button>
 
             {/* כפתורי בקרה */}
@@ -729,7 +729,7 @@ function App() {
                 onClick={() => setShowAmericanColumns(!showAmericanColumns)}
                 className="btn btn-info"
               >
-                {showAmericanColumns ? 'הסתר עמודות אמריקאיות' : 'הצג עמודות אמריקאיות'}
+                {showAmericanColumns ? 'הסתר עמודות אמריקאיות' : 'הצגת נתונים נוספים בבורסה אמריקאית'}
               </button>
             </div>
             
