@@ -81,7 +81,27 @@ function App() {
         const meta = data.chart.result[0].meta;
         const currentPrice = meta.regularMarketPrice;
         const changePercent = meta.regularMarketChangePercent;
-        return { currentPrice, changePercent };
+        
+        // בדוק שדות שונים לאחוז שינוי
+        let alternativeChangePercent = meta.regularMarketChange || 
+                                     meta.change || 
+                                     meta.changePercent;
+        
+        // אם אף אחד לא קיים, נסה לחשב ידנית
+        if (alternativeChangePercent === undefined && meta.previousClose && meta.regularMarketPrice) {
+          alternativeChangePercent = ((meta.regularMarketPrice - meta.previousClose) / meta.previousClose * 100);
+        }
+        
+        const finalChangePercent = changePercent !== undefined ? changePercent : (alternativeChangePercent || 0);
+        
+        // בדיקה סופית
+        if (isNaN(finalChangePercent)) {
+          return { currentPrice: currentPrice || 0, changePercent: 0 };
+        }
+        
+        return { currentPrice: currentPrice || 0, changePercent: finalChangePercent };
+      } else {
+        return null;
       }
     } catch (error) {
       console.error('Error fetching price:', error);
@@ -375,7 +395,7 @@ function App() {
         {exchange === 'american' && (
           <>
             <td>
-              <span className="edit-display">{stock.dailyChangePercent ? stock.dailyChangePercent.toFixed(2) : '0.00'}%</span>
+              <span className="edit-display">{stock.dailyChangePercent !== undefined && stock.dailyChangePercent !== null ? stock.dailyChangePercent.toFixed(2) : '0.00'}%</span>
             </td>
             {showAdditionalColumns && <td>
               <span className="edit-display">
@@ -671,8 +691,8 @@ function App() {
                           <td className={profitPercentage >= 0 ? 'profit-positive' : 'profit-negative'}>
                             {profitPercentage}%
                           </td>
-                          <td className={stock.dailyChangePercent >= 0 ? 'profit-positive' : 'profit-negative'}>
-                            {stock.dailyChangePercent ? stock.dailyChangePercent.toFixed(2) : '0.00'}%
+                          <td className={(stock.dailyChangePercent || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
+                            {stock.dailyChangePercent !== undefined && stock.dailyChangePercent !== null ? stock.dailyChangePercent.toFixed(2) : '0.00'}%
                           </td>
                           {showAdditionalColumns && (
                             <td className={exchangeRateImpact >= 0 ? 'profit-positive' : 'profit-negative'}>
