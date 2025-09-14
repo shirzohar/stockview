@@ -62,15 +62,22 @@ function App() {
         
         const updatedAmericanStocks = [];
         for (const stock of americanStocks) {
-          const priceData = await fetchCurrentPrice(stock.stockName);
-          if (priceData !== null) {
-            updatedAmericanStocks.push({
-              ...stock, 
-              currentPrice: priceData.currentPrice,
-              dailyChangePercent: priceData.changePercent,
-              currentExchangeRate: currentExchangeRate || stock.currentExchangeRate || stock.exchangeRate
-            });
-          } else {
+          try {
+            const priceData = await fetchCurrentPrice(stock.stockName);
+            if (priceData !== null) {
+              updatedAmericanStocks.push({
+                ...stock, 
+                currentPrice: priceData.currentPrice,
+                dailyChangePercent: priceData.changePercent,
+                currentExchangeRate: currentExchangeRate || stock.currentExchangeRate || stock.exchangeRate
+              });
+            } else {
+              updatedAmericanStocks.push({
+                ...stock,
+                currentExchangeRate: currentExchangeRate || stock.currentExchangeRate || stock.exchangeRate
+              });
+            }
+          } catch (error) {
             updatedAmericanStocks.push({
               ...stock,
               currentExchangeRate: currentExchangeRate || stock.currentExchangeRate || stock.exchangeRate
@@ -102,8 +109,25 @@ function App() {
       if (data.chart && data.chart.result && data.chart.result.length > 0) {
         const meta = data.chart.result[0].meta;
         const currentPrice = meta.regularMarketPrice;
-        const changePercent = meta.regularMarketChangePercent;
-        return { currentPrice, changePercent };
+        
+        // נסה כמה אפשרויות לאחוז שינוי
+        const changePercent = meta.regularMarketChangePercent || 
+                             meta.changePercent || 
+                             meta.regularMarketChange || 
+                             meta.change || 
+                             0;
+        
+        // אם אין אחוז שינוי, חשב אותו בעצמי
+        let finalChangePercent = 0;
+        if (changePercent && changePercent !== 0) {
+          finalChangePercent = changePercent * 100; // המרה לאחוזים
+        } else if (meta.previousClose && meta.regularMarketPrice) {
+          // חשב אחוז שינוי בעצמי
+          const change = meta.regularMarketPrice - meta.previousClose;
+          finalChangePercent = (change / meta.previousClose) * 100;
+        }
+        
+        return { currentPrice, changePercent: finalChangePercent };
       }
     } catch (error) {
       console.error('Error fetching price:', error);
@@ -1046,7 +1070,7 @@ function App() {
                           <td className={profitPercentage >= 0 ? 'profit-positive' : 'profit-negative'}>
                             {profitPercentage}%
                           </td>
-                          <td className={stock.dailyChangePercent >= 0 ? 'profit-positive' : 'profit-negative'}>
+                          <td className={(stock.dailyChangePercent || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
                             {stock.dailyChangePercent ? stock.dailyChangePercent.toFixed(2) : '0.00'}%
                           </td>
                           <td className={exchangeRateImpact >= 0 ? 'profit-positive' : 'profit-negative'}>
