@@ -413,6 +413,11 @@ body {
   color: #95a5a6;
 }
 
+/* American stocks table width */
+.american-stocks-table {
+  min-width: 1200px;
+}
+
 /* Responsive tables */
 @media (max-width: 768px) {
   .stocks-section {
@@ -460,11 +465,11 @@ body {
 
 /* Profit/Loss styling */
 .profit-positive {
-  color: #27ae60;
+  color: #27ae60 !important;
   font-weight: 600;
 }
 
 .profit-negative {
-  color: #e74c3c;
+  color: #e74c3c !important;
   font-weight: 600;
 }

@@ -11,8 +11,7 @@ function App() {
     purchasePrice: '',
     quantity: '',
     exchange: 'israeli',
-    exchangeRate: '',
-    currentPrice: ''
+    exchangeRate: ''
   });
 
   // טעינת נתונים מ-LocalStorage בעת טעינת הקומפוננטה
@@ -29,10 +28,80 @@ function App() {
     }
   }, []);
 
+  // עדכון אוטומטי של מחירי מניות אמריקאיות, אחוז שינוי יומי ושער החליפין כל 10 שניות
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (americanStocks.length > 0) {
+        // קבלת שער החליפין הנוכחי
+        const currentExchangeRate = await fetchExchangeRate();
+        
+        const updatedStocks = [];
+        for (const stock of americanStocks) {
+          const priceData = await fetchCurrentPrice(stock.stockName);
+          if (priceData !== null) {
+            updatedStocks.push({
+              ...stock, 
+              currentPrice: priceData.currentPrice,
+              dailyChangePercent: priceData.changePercent,
+              currentExchangeRate: currentExchangeRate || stock.currentExchangeRate || stock.exchangeRate
+            });
+          } else {
+            updatedStocks.push({
+              ...stock,
+              currentExchangeRate: currentExchangeRate || stock.currentExchangeRate || stock.exchangeRate
+            });
+          }
+        }
+        setAmericanStocks(updatedStocks);
+        saveToLocalStorage(israeliStocks, updatedStocks);
+      }
+    }, 10000); // 10 שניות
+
+    return () => clearInterval(interval);
+  }, [americanStocks, israeliStocks]);
+
   // שמירת נתונים ב-LocalStorage
   const saveToLocalStorage = (israeliData, americanData) => {
     localStorage.setItem('israeliStocks', JSON.stringify(israeliData));
     localStorage.setItem('americanStocks', JSON.stringify(americanData));
+  };
+
+  // פונקציה לקבלת מחיר נוכחי ואחוז שינוי יומי מ-Yahoo Finance דרך proxy
+  const fetchCurrentPrice = async (stockSymbol) => {
+    try {
+      const proxyUrl = 'https://api.allorigins.win/raw?url=';
+      const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${stockSymbol}`;
+      const response = await fetch(proxyUrl + encodeURIComponent(yahooUrl));
+      const data = await response.json();
+      
+      if (data.chart && data.chart.result && data.chart.result.length > 0) {
+        const meta = data.chart.result[0].meta;
+        const currentPrice = meta.regularMarketPrice;
+        const changePercent = meta.regularMarketChangePercent;
+        return { currentPrice, changePercent };
+      }
+    } catch (error) {
+      console.error('Error fetching price:', error);
+      return null;
+    }
+  };
+
+  // פונקציה לקבלת שער החליפין הנוכחי שקל/דולר מ-Yahoo Finance
+  const fetchExchangeRate = async () => {
+    try {
+      const proxyUrl = 'https://api.allorigins.win/raw?url=';
+      const yahooUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/USDILS=X';
+      const response = await fetch(proxyUrl + encodeURIComponent(yahooUrl));
+      const data = await response.json();
+      
+      if (data.chart && data.chart.result && data.chart.result.length > 0) {
+        const currentRate = data.chart.result[0].meta.regularMarketPrice;
+        return currentRate;
+      }
+    } catch (error) {
+      console.error('Error fetching exchange rate:', error);
+      return null;
+    }
   };
 
   const handleAddInfo = () => {
@@ -47,8 +116,19 @@ function App() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // קבלת מחיר נוכחי ואחוז שינוי יומי מ-API אם זה מנייה אמריקאית
+    let currentPrice = 0;
+    let dailyChangePercent = 0;
+    if (formData.exchange === 'american') {
+      const priceData = await fetchCurrentPrice(formData.stockName.trim());
+      if (priceData) {
+        currentPrice = priceData.currentPrice || 0;
+        dailyChangePercent = priceData.changePercent || 0;
+      }
+    }
     
     // יצירת אובייקט עם הנתונים
     const stockData = {
@@ -58,7 +138,8 @@ function App() {
       purchasePrice: parseFloat(formData.purchasePrice),
       quantity: parseInt(formData.quantity),
       exchangeRate: formData.exchange === 'american' ? parseFloat(formData.exchangeRate) : null,
-      currentPrice: parseFloat(formData.currentPrice)
+      currentPrice: currentPrice,
+      dailyChangePercent: dailyChangePercent
     };
 
     // שמירה בטבלה המתאימה
@@ -81,8 +162,7 @@ function App() {
       purchasePrice: '',
       quantity: '',
       exchange: 'israeli',
-      exchangeRate: '',
-      currentPrice: ''
+      exchangeRate: ''
     });
   };
 
@@ -100,6 +180,17 @@ function App() {
       return '0.00';
     }
     return price.toFixed(2);
+  };
+
+  const formatPriceWithSign = (price) => {
+    if (price === null || price === undefined || isNaN(price)) {
+      return '0.00';
+    }
+    if (price >= 0) {
+      return price.toFixed(2);
+    } else {
+      return `${Math.abs(price).toFixed(2)}-`;
+    }
   };
 
   const calculateProfitPercentage = (purchaseValue, currentValue) => {
@@ -169,20 +260,6 @@ function App() {
                 />
               </div>
 
-              <div className="form-group">
-                <label htmlFor="currentPrice">מחיר נוכחי *</label>
-                <input
-                  type="number"
-                  id="currentPrice"
-                  name="currentPrice"
-                  value={formData.currentPrice}
-                  onChange={handleInputChange}
-                  required
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                />
-              </div>
 
               <div className="form-group">
                 <label htmlFor="exchange">בורסה *</label>
@@ -277,7 +354,7 @@ function App() {
                           <td>{formatPrice(stock.currentPrice)}</td>
                           <td>{formatPrice(totalCurrentValue)}</td>
                           <td className={profit >= 0 ? 'profit-positive' : 'profit-negative'}>
-                            {formatPrice(profit)}
+                            {formatPriceWithSign(profit)}
                           </td>
                           <td className={profit >= 0 ? 'profit-positive' : 'profit-negative'}>
                             {profitPercentage}%
@@ -296,21 +373,23 @@ function App() {
             <div className="stocks-section">
               <h2 className="section-title">בורסה אמריקאית</h2>
               <div className="table-container">
-                <table className="stocks-table">
+                <table className="stocks-table american-stocks-table">
                   <thead>
                     <tr>
                       <th>שם מנייה</th>
                       <th>תאריך קנייה</th>
-                      <th>מחיר קנייה ($)</th>
+                      <th>מחיר קנייה</th>
                       <th>כמות</th>
                       <th>סה"כ רכישה בדולר</th>
                       <th>סה"כ רכישה בשקל</th>
                       <th>שער חליפין ביום הקנייה</th>
                       <th>שער חליפין היום</th>
-                      <th>מחיר נוכחי ($)</th>
+                      <th>מחיר נוכחי</th>
                       <th>סה"כ שווי בדולר</th>
                       <th>סה"כ שווי בש"ח</th>
                       <th>אחוז רווח</th>
+                      <th>אחוז שינוי יומי</th>
+                      <th>השפעת שער חליפין</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -318,25 +397,34 @@ function App() {
                       const totalPurchaseUSD = (stock.purchasePrice || 0) * (stock.quantity || 0);
                       const totalPurchaseILS = totalPurchaseUSD * (stock.exchangeRate || 0);
                       const totalCurrentValueUSD = (stock.currentPrice || 0) * (stock.quantity || 0);
-                      const currentExchangeRate = stock.exchangeRate || 0; // TODO: לקבל שער נוכחי
+                      const currentExchangeRate = stock.currentExchangeRate || stock.exchangeRate || 0;
                       const totalCurrentValueILS = totalCurrentValueUSD * currentExchangeRate;
                       const profitPercentage = calculateProfitPercentage(totalPurchaseILS, totalCurrentValueILS);
+                      
+                      // חישוב השפעת שער החליפין
+                      const exchangeRateImpact = (totalPurchaseUSD * stock.exchangeRate) - (totalCurrentValueUSD * currentExchangeRate);
                       
                       return (
                         <tr key={stock.id}>
                           <td>{stock.stockName}</td>
                           <td>{formatDate(stock.purchaseDate)}</td>
-                          <td>{formatPrice(stock.purchasePrice)}</td>
+                          <td>{formatPriceWithSign(stock.purchasePrice)} $</td>
                           <td>{stock.quantity}</td>
-                          <td>{formatPrice(totalPurchaseUSD)}</td>
-                          <td>{formatPrice(totalPurchaseILS)}</td>
+                          <td>{formatPriceWithSign(totalPurchaseUSD)} $</td>
+                          <td>{formatPriceWithSign(totalPurchaseILS)} ₪</td>
                           <td>{formatPrice(stock.exchangeRate)}</td>
                           <td>{formatPrice(currentExchangeRate)}</td>
-                          <td>{formatPrice(stock.currentPrice)}</td>
-                          <td>{formatPrice(totalCurrentValueUSD)}</td>
-                          <td>{formatPrice(totalCurrentValueILS)}</td>
+                          <td>{formatPriceWithSign(stock.currentPrice)} $</td>
+                          <td>{formatPriceWithSign(totalCurrentValueUSD)} $</td>
+                          <td>{formatPriceWithSign(totalCurrentValueILS)} ₪</td>
                           <td className={profitPercentage >= 0 ? 'profit-positive' : 'profit-negative'}>
                             {profitPercentage}%
+                          </td>
+                          <td className={stock.dailyChangePercent >= 0 ? 'profit-positive' : 'profit-negative'}>
+                            {stock.dailyChangePercent ? stock.dailyChangePercent.toFixed(2) : '0.00'}%
+                          </td>
+                          <td className={exchangeRateImpact >= 0 ? 'profit-positive' : 'profit-negative'}>
+                            {formatPriceWithSign(exchangeRateImpact)} ₪
                           </td>
                         </tr>
                       );
