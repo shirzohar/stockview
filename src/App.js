@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 function App() {
   const [showForm, setShowForm] = useState(false);
   const [showAdditionalColumns, setShowAdditionalColumns] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingRow, setEditingRow] = useState(null);
   const [israeliStocks, setIsraeliStocks] = useState([]);
   const [americanStocks, setAmericanStocks] = useState([]);
   const [formData, setFormData] = useState({
@@ -113,6 +115,46 @@ function App() {
     setShowAdditionalColumns(!showAdditionalColumns);
   };
 
+  const handleToggleEditMode = () => {
+    setIsEditMode(!isEditMode);
+    setEditingRow(null); // איפוס השורה בעריכה
+  };
+
+  const handleRowClick = (stockId, exchange) => {
+    if (!isEditMode) return;
+    setEditingRow({ id: stockId, exchange });
+  };
+
+  const handleSaveEdit = (stockId, exchange, updatedData) => {
+    if (exchange === 'israeli') {
+      const updatedStocks = israeliStocks.map(stock => 
+        stock.id === stockId ? { ...stock, ...updatedData } : stock
+      );
+      setIsraeliStocks(updatedStocks);
+      saveToLocalStorage(updatedStocks, americanStocks);
+    } else {
+      const updatedStocks = americanStocks.map(stock => 
+        stock.id === stockId ? { ...stock, ...updatedData } : stock
+      );
+      setAmericanStocks(updatedStocks);
+      saveToLocalStorage(israeliStocks, updatedStocks);
+    }
+    setEditingRow(null);
+  };
+
+  const handleDeleteStock = (stockId, exchange) => {
+    if (exchange === 'israeli') {
+      const updatedStocks = israeliStocks.filter(stock => stock.id !== stockId);
+      setIsraeliStocks(updatedStocks);
+      saveToLocalStorage(updatedStocks, americanStocks);
+    } else {
+      const updatedStocks = americanStocks.filter(stock => stock.id !== stockId);
+      setAmericanStocks(updatedStocks);
+      saveToLocalStorage(israeliStocks, updatedStocks);
+    }
+    setEditingRow(null);
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -201,6 +243,164 @@ function App() {
   const calculateProfitPercentage = (purchaseValue, currentValue) => {
     if (purchaseValue === 0 || !purchaseValue || !currentValue) return 0;
     return ((currentValue - purchaseValue) / purchaseValue * 100).toFixed(2);
+  };
+
+  // קומפוננטה לעריכת שורה
+  const EditRowForm = ({ stock, exchange, onSave, onDelete }) => {
+    const [editData, setEditData] = useState({
+      stockName: stock.stockName,
+      purchaseDate: stock.purchaseDate,
+      purchasePrice: stock.purchasePrice.toString(),
+      quantity: stock.quantity.toString(),
+      exchangeRate: stock.exchangeRate ? stock.exchangeRate.toString() : ''
+    });
+
+    const handleInputChange = (e) => {
+      const { name, value } = e.target;
+      setEditData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    };
+
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      const updatedData = {
+        stockName: editData.stockName,
+        purchaseDate: editData.purchaseDate,
+        purchasePrice: parseFloat(editData.purchasePrice),
+        quantity: parseInt(editData.quantity),
+        exchangeRate: exchange === 'american' ? parseFloat(editData.exchangeRate) : stock.exchangeRate
+      };
+      onSave(stock.id, exchange, updatedData);
+    };
+
+    const handleKeyPress = (e) => {
+      if (e.key === 'Enter') {
+        handleSubmit(e);
+      }
+    };
+
+    return (
+      <tr className="edit-row">
+        <td>
+          <input
+            type="text"
+            name="stockName"
+            value={editData.stockName}
+            onChange={handleInputChange}
+            onKeyPress={handleKeyPress}
+            className="edit-input"
+          />
+        </td>
+        <td>
+          <input
+            type="date"
+            name="purchaseDate"
+            value={editData.purchaseDate}
+            onChange={handleInputChange}
+            onKeyPress={handleKeyPress}
+            className="edit-input"
+          />
+        </td>
+        <td>
+          <input
+            type="number"
+            name="purchasePrice"
+            value={editData.purchasePrice}
+            onChange={handleInputChange}
+            onKeyPress={handleKeyPress}
+            step="0.01"
+            min="0"
+            className="edit-input"
+          />
+        </td>
+        <td>
+          <input
+            type="number"
+            name="quantity"
+            value={editData.quantity}
+            onChange={handleInputChange}
+            onKeyPress={handleKeyPress}
+            min="1"
+            className="edit-input"
+          />
+        </td>
+        <td>
+          <span className="edit-display">{formatPriceWithSign((parseFloat(editData.purchasePrice) || 0) * (parseInt(editData.quantity) || 0))} $</span>
+        </td>
+        {exchange === 'american' && (
+          <>
+            {showAdditionalColumns && <td>
+              <span className="edit-display">{formatPriceWithSign((parseFloat(editData.purchasePrice) || 0) * (parseInt(editData.quantity) || 0) * (parseFloat(editData.exchangeRate) || 0))} ₪</span>
+            </td>}
+            {showAdditionalColumns && <td>
+              <input
+                type="number"
+                name="exchangeRate"
+                value={editData.exchangeRate}
+                onChange={handleInputChange}
+                onKeyPress={handleKeyPress}
+                step="0.0001"
+                min="0"
+                className="edit-input"
+              />
+            </td>}
+            {showAdditionalColumns && <td>
+              <span className="edit-display">{formatPrice(stock.currentExchangeRate || stock.exchangeRate || 0)}</span>
+            </td>}
+          </>
+        )}
+        <td>
+          <span className="edit-display">{formatPriceWithSign(stock.currentPrice || 0)} $</span>
+        </td>
+        <td>
+          <span className="edit-display">{formatPriceWithSign((stock.currentPrice || 0) * (parseInt(editData.quantity) || 0))} $</span>
+        </td>
+        {exchange === 'american' && showAdditionalColumns && <td>
+          <span className="edit-display">{formatPriceWithSign((stock.currentPrice || 0) * (parseInt(editData.quantity) || 0) * (stock.currentExchangeRate || stock.exchangeRate || 0))} ₪</span>
+        </td>}
+        <td>
+          <span className="edit-display">
+            {calculateProfitPercentage(
+              exchange === 'american' ? 
+                (parseFloat(editData.purchasePrice) || 0) * (parseInt(editData.quantity) || 0) * (parseFloat(editData.exchangeRate) || 0) :
+                (parseFloat(editData.purchasePrice) || 0) * (parseInt(editData.quantity) || 0),
+              exchange === 'american' ? 
+                (stock.currentPrice || 0) * (parseInt(editData.quantity) || 0) * (stock.currentExchangeRate || stock.exchangeRate || 0) :
+                (stock.currentPrice || 0) * (parseInt(editData.quantity) || 0)
+            )}%
+          </span>
+        </td>
+        {exchange === 'american' && (
+          <>
+            <td>
+              <span className="edit-display">{stock.dailyChangePercent ? stock.dailyChangePercent.toFixed(2) : '0.00'}%</span>
+            </td>
+            {showAdditionalColumns && <td>
+              <span className="edit-display">
+                {formatPriceWithSign(
+                  ((parseFloat(editData.purchasePrice) || 0) * (parseInt(editData.quantity) || 0) * (parseFloat(editData.exchangeRate) || 0)) - 
+                  ((stock.currentPrice || 0) * (parseInt(editData.quantity) || 0) * (stock.currentExchangeRate || stock.exchangeRate || 0))
+                )} ₪
+              </span>
+            </td>}
+          </>
+        )}
+        <td>
+          <div className="edit-actions">
+            <button 
+              type="button" 
+              className="delete-button"
+              onClick={() => onDelete(stock.id, exchange)}
+              title="מחק שורה"
+            >
+              🗑️ מחק
+            </button>
+          </div>
+        </td>
+      </tr>
+    );
   };
 
   if (showForm) {
@@ -326,6 +526,9 @@ function App() {
             <button className="additional-data-button" onClick={handleToggleAdditionalColumns}>
               {showAdditionalColumns ? 'הסתרת נתונים נוספים' : 'הצגת נתונים נוספים'}
             </button>
+            <button className="edit-button" onClick={handleToggleEditMode}>
+              {isEditMode ? 'יציאה מעריכה' : 'עריכה'}
+            </button>
           </div>
 
           {/* טבלת בורסה ישראלית */}
@@ -354,8 +557,27 @@ function App() {
                       const profit = totalCurrentValue - totalPurchase;
                       const profitPercentage = calculateProfitPercentage(totalPurchase, totalCurrentValue);
                       
+                      // בדיקה אם השורה נמצאת בעריכה
+                      const isEditing = editingRow && editingRow.id === stock.id && editingRow.exchange === 'israeli';
+                      
+                      if (isEditing) {
+                        return (
+                          <EditRowForm
+                            key={stock.id}
+                            stock={stock}
+                            exchange="israeli"
+                            onSave={handleSaveEdit}
+                            onDelete={handleDeleteStock}
+                          />
+                        );
+                      }
+                      
                       return (
-                        <tr key={stock.id}>
+                        <tr 
+                          key={stock.id}
+                          className={isEditMode ? 'editable-row' : ''}
+                          onClick={() => handleRowClick(stock.id, 'israeli')}
+                        >
                           <td>{stock.stockName}</td>
                           <td>{formatDate(stock.purchaseDate)}</td>
                           <td>{formatPrice(stock.purchasePrice)}</td>
@@ -414,8 +636,27 @@ function App() {
                       // חישוב השפעת שער החליפין
                       const exchangeRateImpact = (totalPurchaseUSD * stock.exchangeRate) - (totalCurrentValueUSD * currentExchangeRate);
                       
+                      // בדיקה אם השורה נמצאת בעריכה
+                      const isEditing = editingRow && editingRow.id === stock.id && editingRow.exchange === 'american';
+                      
+                      if (isEditing) {
+                        return (
+                          <EditRowForm
+                            key={stock.id}
+                            stock={stock}
+                            exchange="american"
+                            onSave={handleSaveEdit}
+                            onDelete={handleDeleteStock}
+                          />
+                        );
+                      }
+                      
                       return (
-                        <tr key={stock.id}>
+                        <tr 
+                          key={stock.id}
+                          className={isEditMode ? 'editable-row' : ''}
+                          onClick={() => handleRowClick(stock.id, 'american')}
+                        >
                           <td>{stock.stockName}</td>
                           <td>{formatDate(stock.purchaseDate)}</td>
                           <td>{formatPriceWithSign(stock.purchasePrice)} $</td>

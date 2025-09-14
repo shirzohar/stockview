@@ -121,6 +121,33 @@ body {
   transform: translateY(-1px);
 }
 
+/* Edit button */
+.edit-button {
+  background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+  color: white;
+  border: none;
+  padding: 18px 40px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 25px rgba(39, 174, 96, 0.3);
+  font-family: inherit;
+  text-transform: none;
+  letter-spacing: 0.5px;
+}
+
+.edit-button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 35px rgba(39, 174, 96, 0.4);
+  background: linear-gradient(135deg, #229954 0%, #27ae60 100%);
+}
+
+.edit-button:active {
+  transform: translateY(-1px);
+}
+
 /* Features grid */
 .features-grid {
   display: grid;
@@ -183,7 +210,8 @@ body {
   }
   
   .add-info-button,
-  .additional-data-button {
+  .additional-data-button,
+  .edit-button {
     padding: 15px 30px;
     font-size: 1rem;
   }
@@ -214,7 +242,8 @@ body {
   }
   
   .add-info-button,
-  .additional-data-button {
+  .additional-data-button,
+  .edit-button {
     padding: 12px 25px;
     font-size: 0.95rem;
     width: 100%;
@@ -522,4 +551,88 @@ body {
 .profit-negative {
   color: #e74c3c !important;
   font-weight: 600;
+}
+
+/* Edit mode styles */
+.editable-row {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.editable-row:hover {
+  background-color: #e8f4fd !important;
+}
+
+.edit-row {
+  background-color: #f8f9fa;
+  border: 1px solid #667eea;
+}
+
+.edit-row td {
+  padding: 6px 8px;
+  vertical-align: middle;
+}
+
+.edit-input {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-size: 0.85rem;
+  text-align: center;
+  background: white;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.edit-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.edit-instruction {
+  color: #667eea;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.edit-display {
+  color: #2c3e50;
+  font-weight: 500;
+  font-size: 0.85rem;
+  display: block;
+  padding: 2px 4px;
+}
+
+.edit-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+}
+
+.delete-button {
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  box-shadow: 0 1px 4px rgba(231, 76, 60, 0.3);
+}
+
+.delete-button:hover {
+  background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+}
+
+.delete-button:active {
+  transform: translateY(0);
 }
