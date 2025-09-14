@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 
 function App() {
   const [showForm, setShowForm] = useState(false);
+  const [showAdditionalColumns, setShowAdditionalColumns] = useState(false);
   const [israeliStocks, setIsraeliStocks] = useState([]);
   const [americanStocks, setAmericanStocks] = useState([]);
   const [formData, setFormData] = useState({
@@ -106,6 +107,10 @@ function App() {
 
   const handleAddInfo = () => {
     setShowForm(true);
+  };
+
+  const handleToggleAdditionalColumns = () => {
+    setShowAdditionalColumns(!showAdditionalColumns);
   };
 
   const handleInputChange = (e) => {
@@ -314,9 +319,14 @@ function App() {
           <h1 className="welcome-title">ברוך הבא למערכת מעקב אחרי תיק ההשקעות שלך</h1>
           <p className="welcome-subtitle">ניהול חכם של ההשקעות שלך במקום אחד</p>
           
-          <button className="add-info-button" onClick={handleAddInfo}>
-            לחץ כאן כדי להוסיף מידע
-          </button>
+          <div className="buttons-container">
+            <button className="add-info-button" onClick={handleAddInfo}>
+              הוספת מידע חדש
+            </button>
+            <button className="additional-data-button" onClick={handleToggleAdditionalColumns}>
+              {showAdditionalColumns ? 'הסתרת נתונים נוספים' : 'הצגת נתונים נוספים'}
+            </button>
+          </div>
 
           {/* טבלת בורסה ישראלית */}
           {israeliStocks.length > 0 && (
@@ -381,15 +391,15 @@ function App() {
                       <th>מחיר קנייה</th>
                       <th>כמות</th>
                       <th>סה"כ רכישה בדולר</th>
-                      <th>סה"כ רכישה בשקל</th>
-                      <th>שער חליפין ביום הקנייה</th>
-                      <th>שער חליפין היום</th>
+                      {showAdditionalColumns && <th>סה"כ רכישה בשקל</th>}
+                      {showAdditionalColumns && <th>שער חליפין ביום הקנייה</th>}
+                      {showAdditionalColumns && <th>שער חליפין היום</th>}
                       <th>מחיר נוכחי</th>
                       <th>סה"כ שווי בדולר</th>
-                      <th>סה"כ שווי בש"ח</th>
+                      {showAdditionalColumns && <th>סה"כ שווי בש"ח</th>}
                       <th>אחוז רווח</th>
                       <th>אחוז שינוי יומי</th>
-                      <th>השפעת שער חליפין</th>
+                      {showAdditionalColumns && <th>השפעת שער חליפין</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -411,21 +421,23 @@ function App() {
                           <td>{formatPriceWithSign(stock.purchasePrice)} $</td>
                           <td>{stock.quantity}</td>
                           <td>{formatPriceWithSign(totalPurchaseUSD)} $</td>
-                          <td>{formatPriceWithSign(totalPurchaseILS)} ₪</td>
-                          <td>{formatPrice(stock.exchangeRate)}</td>
-                          <td>{formatPrice(currentExchangeRate)}</td>
+                          {showAdditionalColumns && <td>{formatPriceWithSign(totalPurchaseILS)} ₪</td>}
+                          {showAdditionalColumns && <td>{formatPrice(stock.exchangeRate)}</td>}
+                          {showAdditionalColumns && <td>{formatPrice(currentExchangeRate)}</td>}
                           <td>{formatPriceWithSign(stock.currentPrice)} $</td>
                           <td>{formatPriceWithSign(totalCurrentValueUSD)} $</td>
-                          <td>{formatPriceWithSign(totalCurrentValueILS)} ₪</td>
+                          {showAdditionalColumns && <td>{formatPriceWithSign(totalCurrentValueILS)} ₪</td>}
                           <td className={profitPercentage >= 0 ? 'profit-positive' : 'profit-negative'}>
                             {profitPercentage}%
                           </td>
                           <td className={stock.dailyChangePercent >= 0 ? 'profit-positive' : 'profit-negative'}>
                             {stock.dailyChangePercent ? stock.dailyChangePercent.toFixed(2) : '0.00'}%
                           </td>
-                          <td className={exchangeRateImpact >= 0 ? 'profit-positive' : 'profit-negative'}>
-                            {formatPriceWithSign(exchangeRateImpact)} ₪
-                          </td>
+                          {showAdditionalColumns && (
+                            <td className={exchangeRateImpact >= 0 ? 'profit-positive' : 'profit-negative'}>
+                              {formatPriceWithSign(exchangeRateImpact)} ₪
+                            </td>
+                          )}
                         </tr>
                       );
                     })}
