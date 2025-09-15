@@ -816,8 +816,8 @@ function App() {
                       <th>סה"כ קנייה בש"ח</th>
                       <th>מחיר נוכחי (₪)</th>
                       <th>סה"כ שווי היום (₪)</th>
-                      <th>סה"כ רווח בש"ח</th>
-                      <th>אחוז רווח</th>
+                      <th>סה"כ רווח/הפסד בש"ח</th>
+                      <th>אחוז רווח/הפסד</th>
                       <th>אחוז שינוי יומי</th>
                       {isEditMode && <th>פעולות</th>}
                     </tr>
@@ -1111,9 +1111,9 @@ function App() {
                       <th>מחיר נוכחי</th>
                       <th>סה"כ שווי בדולר</th>
                       {showAmericanColumns && <th>סה"כ שווי בש"ח</th>}
-                      <th>סה"כ רווח ($)</th>
-                      {showAmericanColumns && <th>סה"כ רווח (₪)</th>}
-                      <th>אחוז רווח</th>
+                      <th>סה"כ רווח/הפסד ($)</th>
+                      {showAmericanColumns && <th>סה"כ רווח/הפסד (₪)</th>}
+                      <th>אחוז רווח/הפסד</th>
                       <th>אחוז שינוי יומי</th>
                       {showAmericanColumns && <th>השפעת שער חליפין</th>}
                       {isEditMode && <th>פעולות</th>}
