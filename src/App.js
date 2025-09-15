@@ -36,14 +36,11 @@ function App() {
   // פונקציה לקבלת מחיר נוכחי ואחוז שינוי יומי מ-TASE (דרך השרת המקומי)
   const fetchIsraeliStockPrice = async (stockId) => {
     try {
-      console.log(`📡 [TASE] מבקש מחיר לנייר ${stockId}`);
       const response = await fetch(`http://localhost:5000/api/israeli-stock/${stockId}`);
       if (!response.ok) throw new Error('שגיאה בקריאת נתונים מהשרת');
       const json = await response.json();
-      console.log(`✅ [TASE] התקבל עבור ${stockId}:`, json);
       return json;
     } catch (error) {
-      console.error('Error fetching Israeli stock price (TASE):', error);
       return null;
     }
   };
@@ -51,32 +48,41 @@ function App() {
   // עדכון אוטומטי של מחירי מניות כל 10 שניות
   useEffect(() => {
     const interval = setInterval(async () => {
+      // לא מעדכן אם המשתמש נמצא במצב עריכה
+      if (isEditMode || editingField) {
+        console.log('⏸️ עדכון אוטומטי מושהה - משתמש בעריכה');
+        return;
+      }
+      console.log('🔄 עדכון אוטומטי מתחיל...');
+      
       // עדכון מניות ישראליות
       if (israeliStocks.length > 0) {
         const updatedIsraeliStocks = [];
         for (const stock of israeliStocks) {
-          console.log(`🔄 מעדכן מנייה ישראלית id=${stock.stockName}`);
           const priceData = await fetchIsraeliStockPrice(stock.stockName); // stockName מכיל את ה-id
-          if (priceData) {
-            // הצגה באגורות כפי שביקשת (ללא המרה)
-            const normalizedPrice = priceData.currentPrice;
+          if (priceData && priceData.currentPrice !== null) {
+            // המרה מאגורות לשקלים
+            const normalizedPrice = priceData.currentPrice / 100;
             updatedIsraeliStocks.push({
               ...stock,
               currentPrice: normalizedPrice,
               dailyChangePercent: priceData.changePercent
             });
-            console.log(`🟢 עודכן ${stock.stockName}: מחיר=${normalizedPrice} שינוי=${priceData.changePercent}%`);
           } else {
+            // אם לא התקבל מחיר, שומרים את המנייה עם הנתונים הקיימים
             updatedIsraeliStocks.push(stock);
-            console.log(`⚠️ לא התקבל מחיר עבור ${stock.stockName}, שומר ערכים קיימים`);
           }
         }
         setIsraeliStocks(updatedIsraeliStocks);
+        // שמירה עם המניות האמריקאיות הנוכחיות
+        setAmericanStocks(currentAmericanStocks => {
+          saveToLocalStorage(updatedIsraeliStocks, currentAmericanStocks);
+          return currentAmericanStocks;
+        });
       }
 
       // עדכון מניות אמריקאיות
       if (americanStocks.length > 0) {
-        console.log(`🔄 מעדכן מניות אמריקאיות (${americanStocks.length} מניות)`);
         // קבלת שער החליפין הנוכחי
         const currentExchangeRate = await fetchExchangeRate();
         
@@ -105,12 +111,16 @@ function App() {
           }
         }
         setAmericanStocks(updatedAmericanStocks);
-        saveToLocalStorage(israeliStocks, updatedAmericanStocks);
+        // שמירה עם המניות הישראליות הנוכחיות
+        setIsraeliStocks(currentIsraeliStocks => {
+          saveToLocalStorage(currentIsraeliStocks, updatedAmericanStocks);
+          return currentIsraeliStocks;
+        });
       }
     }, 10000); // 10 שניות
 
     return () => clearInterval(interval);
-  }, [israeliStocks.length, americanStocks.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [israeliStocks.length, americanStocks.length, isEditMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // שמירת נתונים ב-LocalStorage
   const saveToLocalStorage = (israeliData, americanData) => {
@@ -150,7 +160,6 @@ function App() {
         return { currentPrice, changePercent: finalChangePercent };
       }
     } catch (error) {
-      console.error('Error fetching price:', error);
       return null;
     }
   };
@@ -168,7 +177,6 @@ function App() {
         return currentRate;
       }
     } catch (error) {
-      console.error('Error fetching exchange rate:', error);
       return null;
     }
   };
@@ -177,6 +185,8 @@ function App() {
 
 
   const handleAddInfo = () => {
+    setIsEditMode(false);
+    setEditingStock(null);
     setShowForm(true);
   };
 
@@ -190,13 +200,14 @@ function App() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('🚀 handleSubmit נקרא!');
+    console.log('📝 נתוני הטופס:', formData);
     
     // קבלת מחיר נוכחי ואחוז שינוי יומי מ-API
     let currentPrice = 0;
     let dailyChangePercent = 0;
     
     if (formData.exchange === 'american') {
-      console.log(`🇺🇸 מוסיף מנייה אמריקאית: ${formData.stockName}`);
       const priceData = await fetchCurrentPrice(formData.stockName.trim());
       if (priceData) {
         currentPrice = priceData.currentPrice || 0;
@@ -204,16 +215,13 @@ function App() {
       }
     } else if (formData.exchange === 'israeli') {
       const stockId = formData.stockName.trim();
-      console.log(`📝 [Form Submit] מבקש מחיר מ-TASE לנייר ${stockId}`);
       const priceData = await fetchIsraeliStockPrice(stockId);
-      if (priceData) {
-        const normalizedPrice = priceData.currentPrice || 0; // מציגים באגורות
+      if (priceData && priceData.currentPrice !== null) {
+        const normalizedPrice = priceData.currentPrice / 100; // המרה מאגורות לשקלים
         currentPrice = normalizedPrice;
         dailyChangePercent = priceData.changePercent || 0;
-        console.log(`✅ [Form Submit] מחיר שהתקבל ל-${stockId}: ${currentPrice} ₪, שינוי ${dailyChangePercent}%`);
-      } else {
-        console.log(`❌ [Form Submit] לא התקבל מחיר ל-${stockId}`);
       }
+      // אם לא מתקבל מחיר, המחיר נשאר 0 (כפי שהוגדר בתחילת הפונקציה)
     }
     
     // יצירת אובייקט עם הנתונים
@@ -229,12 +237,15 @@ function App() {
     };
 
     // שמירה בטבלה המתאימה
+    console.log('💾 שומר מנייה חדשה:', stockData);
     if (formData.exchange === 'israeli') {
       const updatedIsraeliStocks = [...israeliStocks, stockData];
+      console.log('📊 מניות ישראליות לפני:', israeliStocks.length, 'אחרי:', updatedIsraeliStocks.length);
       setIsraeliStocks(updatedIsraeliStocks);
       saveToLocalStorage(updatedIsraeliStocks, americanStocks);
     } else {
       const updatedAmericanStocks = [...americanStocks, stockData];
+      console.log('📊 מניות אמריקאיות לפני:', americanStocks.length, 'אחרי:', updatedAmericanStocks.length);
       setAmericanStocks(updatedAmericanStocks);
       saveToLocalStorage(israeliStocks, updatedAmericanStocks);
     }
@@ -282,8 +293,8 @@ function App() {
       return;
     }
     
-    let currentPrice = editingStock.currentPrice || 0;
-    let dailyChangePercent = editingStock.dailyChangePercent || 0;
+    let currentPrice = editingStock.currentPrice;
+    let dailyChangePercent = editingStock.dailyChangePercent;
     
     if (formData.exchange === 'american') {
       const priceData = await fetchCurrentPrice(formData.stockName.trim());
@@ -292,9 +303,8 @@ function App() {
         dailyChangePercent = priceData.changePercent || 0;
       }
     } else if (formData.exchange === 'israeli') {
-      // מנייה ישראלית - לא מעדכנים מחיר
-      currentPrice = 0;
-      dailyChangePercent = 0;
+      // מנייה ישראלית - שומרים את המחיר הנוכחי ואחוז השינוי הקיימים
+      // currentPrice ו-dailyChangePercent כבר מוגדרים מהערכים הקיימים
     }
     
     const updatedStock = {
@@ -350,6 +360,7 @@ function App() {
 
   // פונקציה לעריכה inline
   const handleInlineEdit = (id, field, value, exchange) => {
+    console.log(`✏️ עריכה: ${field} = ${value} עבור מנייה ${id}`);
     if (exchange === 'israeli') {
       const updatedIsraeliStocks = israeliStocks.map(stock => 
         stock.id === id ? { ...stock, [field]: value } : stock
@@ -561,7 +572,9 @@ function App() {
             
             <form onSubmit={handleSubmit} className="stock-form">
               <div className="form-group">
-                <label htmlFor="stockName">שם מנייה *</label>
+                <label htmlFor="stockName">
+                  {formData.exchange === 'israeli' ? 'ID מנייה מ-TASE *' : 'שם מנייה *'}
+                </label>
                 <input
                   type="text"
                   id="stockName"
@@ -569,8 +582,13 @@ function App() {
                   value={formData.stockName}
                   onChange={handleInputChange}
                   required
-                  placeholder="לדוגמה: טבע, אפל, מיקרוסופט"
+                  placeholder={formData.exchange === 'israeli' ? 'לדוגמה: 1159243 (ID של המנייה מ-TASE)' : 'לדוגמה: AAPL, MSFT, TSLA'}
                 />
+                {formData.exchange === 'israeli' && (
+                  <small className="form-help">
+                    עבור מניות ישראליות, הזן את ה-ID של המנייה מ-TASE (מספר כמו 1159243)
+                  </small>
+                )}
               </div>
 
               <div className="form-group">

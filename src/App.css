@@ -546,6 +546,14 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+.form-help {
+  display: block;
+  margin-top: 5px;
+  font-size: 0.85rem;
+  color: #666;
+  font-style: italic;
+}
+
 .form-content {
   max-width: 500px;
   margin: 0 auto;

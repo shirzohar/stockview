@@ -58,16 +58,12 @@ app.get('/api/israeli-stock/:id', async (req, res) => {
   const taseUrl = `https://market.tase.co.il/he/market_data/security/${stockId}/major_data`;
   try {
     const result = await scrapeTaseWithPuppeteer(taseUrl);
-    console.log(`TASE scrape ${stockId}:`, { currentPrice: result.currentPrice, changePercent: result.changePercent });
     return res.json({ currentPrice: result.currentPrice, changePercent: result.changePercent });
   } catch (err) {
-    console.error('TASE puppeteer error:', err.message);
     try {
       const result = await scrapeTaseFallbackWithAxios(taseUrl);
-      console.log(`TASE fallback ${stockId}:`, { currentPrice: result.currentPrice, changePercent: result.changePercent });
       return res.json({ currentPrice: result.currentPrice, changePercent: result.changePercent });
     } catch (e2) {
-      console.error('TASE axios fallback error:', e2.message);
       return res.json({ currentPrice: null, changePercent: null });
     }
   }
@@ -77,5 +73,4 @@ app.get('/api/israeli-stock/:id', async (req, res) => {
 // Debug route removed by request
 
 app.listen(5000, () => {
-  console.log('✅ Server running on http://localhost:5000');
 });
