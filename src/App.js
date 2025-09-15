@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 
 function App() {
   const [showForm, setShowForm] = useState(false);
+  const [isAddingNewStock, setIsAddingNewStock] = useState(false);
   const [israeliStocks, setIsraeliStocks] = useState([]);
   const [americanStocks, setAmericanStocks] = useState([]);
   const [formData, setFormData] = useState({
@@ -48,9 +49,9 @@ function App() {
   // עדכון אוטומטי של מחירי מניות כל 10 שניות
   useEffect(() => {
     const interval = setInterval(async () => {
-      // לא מעדכן אם המשתמש נמצא במצב עריכה
-      if (isEditMode || editingField) {
-        console.log('⏸️ עדכון אוטומטי מושהה - משתמש בעריכה');
+      // לא מעדכן אם המשתמש נמצא במצב עריכה או מוסיף מנייה חדשה
+      if (isEditMode || editingField || isAddingNewStock) {
+        console.log('⏸️ עדכון אוטומטי מושהה - משתמש בעריכה או מוסיף מנייה חדשה');
         return;
       }
       console.log('🔄 עדכון אוטומטי מתחיל...');
@@ -120,7 +121,7 @@ function App() {
     }, 10000); // 10 שניות
 
     return () => clearInterval(interval);
-  }, [israeliStocks.length, americanStocks.length, isEditMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [israeliStocks.length, americanStocks.length, isEditMode, isAddingNewStock]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // שמירת נתונים ב-LocalStorage
   const saveToLocalStorage = (israeliData, americanData) => {
@@ -187,6 +188,7 @@ function App() {
   const handleAddInfo = () => {
     setIsEditMode(false);
     setEditingStock(null);
+    setIsAddingNewStock(true);
     setShowForm(true);
   };
 
@@ -251,6 +253,7 @@ function App() {
     }
 
     setShowForm(false);
+    setIsAddingNewStock(false);
     
     // איפוס הטופס
     setFormData({
