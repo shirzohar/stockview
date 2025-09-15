@@ -69,13 +69,11 @@ function App() {
         
         // עבור כל מנייה ייחודית, בקש נתונים פעם אחת
         for (const [stockSymbol, stocks] of Object.entries(stocksBySymbol)) {
-          console.log(`🔄 מבקש נתונים עבור מנייה ${stockSymbol} (${stocks.length} שורות)`);
           const priceData = await fetchIsraeliStockPrice(stockSymbol);
           
           if (priceData && priceData.currentPrice !== null) {
             // המרה מאגורות לשקלים
             const normalizedPrice = priceData.currentPrice / 100;
-            console.log(`✅ התקבל מחיר ${normalizedPrice} ₪ עבור ${stockSymbol}`);
             
             // עדכן את כל השורות של המנייה הזו
             stocks.forEach(stock => {
@@ -86,7 +84,6 @@ function App() {
               });
             });
           } else {
-            console.log(`❌ לא התקבל מחיר עבור ${stockSymbol}`);
             // אם לא התקבל מחיר, שומרים את המניות עם הנתונים הקיימים
             stocks.forEach(stock => {
               updatedIsraeliStocks.push(stock);
@@ -120,12 +117,9 @@ function App() {
         
         // עבור כל מנייה ייחודית, בקש נתונים פעם אחת
         for (const [stockSymbol, stocks] of Object.entries(stocksBySymbol)) {
-          console.log(`🔄 מבקש נתונים עבור מנייה אמריקאית ${stockSymbol} (${stocks.length} שורות)`);
           try {
             const priceData = await fetchCurrentPrice(stockSymbol);
             if (priceData !== null) {
-              console.log(`✅ התקבל מחיר ${priceData.currentPrice} $ עבור ${stockSymbol}`);
-              
               // עדכן את כל השורות של המנייה הזו
               stocks.forEach(stock => {
                 updatedAmericanStocks.push({
@@ -136,7 +130,6 @@ function App() {
                 });
               });
             } else {
-              console.log(`❌ לא התקבל מחיר עבור ${stockSymbol}`);
               stocks.forEach(stock => {
                 updatedAmericanStocks.push({
                   ...stock,
@@ -145,7 +138,6 @@ function App() {
               });
             }
           } catch (error) {
-            console.log(`❌ שגיאה בקבלת מחיר עבור ${stockSymbol}: ${error.message}`);
             stocks.forEach(stock => {
               updatedAmericanStocks.push({
                 ...stock,
@@ -591,6 +583,10 @@ function App() {
     const weightedDailyChange = totalWeight > 0 ? 
       (israeliSummary.dailyChangeSum + americanSummary.dailyChangeSum) / totalWeight : 0;
 
+    // חישוב רווח יומי בשקלים ובדולרים
+    const dailyProfitILS = (weightedDailyChange / 100) * (israeliSummary.totalCurrentValueILS + americanSummary.totalCurrentValueILS);
+    const dailyProfitUSD = (weightedDailyChange / 100) * americanSummary.totalCurrentValueUSD;
+
     return {
       // סיכום בשקלים
       totalPurchaseILS: israeliSummary.totalPurchaseILS + americanSummary.totalPurchaseILS,
@@ -604,6 +600,10 @@ function App() {
       
       // אחוז שינוי יומי משוקלל
       weightedDailyChange: weightedDailyChange,
+      
+      // רווח יומי בשקלים ובדולרים
+      dailyProfitILS: dailyProfitILS,
+      dailyProfitUSD: dailyProfitUSD,
       
       // השפעת שער חליפין כוללת
       totalExchangeImpact: americanSummary.totalExchangeImpact
@@ -800,6 +800,18 @@ function App() {
                         </span>
                       </div>
                       <div className="summary-item">
+                        <span className="summary-label">רווח יומי בש"ח:</span>
+                        <span className={`summary-value ${summary.dailyProfitILS >= 0 ? 'profit-positive' : 'profit-negative'}`}>
+                          {formatPriceWithSign(summary.dailyProfitILS)} ₪
+                        </span>
+                      </div>
+                      <div className="summary-item">
+                        <span className="summary-label">רווח יומי בדולר:</span>
+                        <span className={`summary-value ${summary.dailyProfitUSD >= 0 ? 'profit-positive' : 'profit-negative'}`}>
+                          {formatPriceWithSign(summary.dailyProfitUSD)} $
+                        </span>
+                      </div>
+                      <div className="summary-item">
                         <span className="summary-label">השפעת שער חליפין:</span>
                         <span className={`summary-value ${summary.totalExchangeImpact >= 0 ? 'profit-positive' : 'profit-negative'}`}>
                           {formatPriceWithSign(summary.totalExchangeImpact)} ₪
@@ -863,6 +875,7 @@ function App() {
                       <th>סה"כ רווח/הפסד בש"ח</th>
                       <th>אחוז רווח/הפסד</th>
                       <th>אחוז שינוי יומי</th>
+                      <th>רווח יומי בש"ח</th>
                       {isEditMode && <th>פעולות</th>}
                     </tr>
                   </thead>
@@ -966,6 +979,9 @@ function App() {
                             <td className={(stock.dailyChangePercent || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
                               {stock.dailyChangePercent !== undefined && stock.dailyChangePercent !== null ? stock.dailyChangePercent.toFixed(2) : '0.00'}%
                             </td>
+                            <td className={(stock.dailyChangePercent || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
+                              {formatPriceWithSign(((stock.dailyChangePercent || 0) / 100) * totalCurrentValue)} ₪
+                            </td>
                             {isEditMode && (
                               <td>
                                 <button 
@@ -1014,6 +1030,9 @@ function App() {
                             </td>
                             <td className={(stocks[0].dailyChangePercent || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
                               {stocks[0].dailyChangePercent !== undefined && stocks[0].dailyChangePercent !== null ? stocks[0].dailyChangePercent.toFixed(2) : '0.00'}%
+                            </td>
+                            <td className={(stocks[0].dailyChangePercent || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
+                              {formatPriceWithSign(((stocks[0].dailyChangePercent || 0) / 100) * summary.totalCurrentValue)} ₪
                             </td>
                             {isEditMode && <td></td>}
                           </tr>
@@ -1114,6 +1133,9 @@ function App() {
                                 <td className={(stock.dailyChangePercent || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
                                   {stock.dailyChangePercent !== undefined && stock.dailyChangePercent !== null ? stock.dailyChangePercent.toFixed(2) : '0.00'}%
                                 </td>
+                                <td className={(stock.dailyChangePercent || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
+                                  {formatPriceWithSign(((stock.dailyChangePercent || 0) / 100) * totalCurrentValue)} ₪
+                                </td>
                                 {isEditMode && (
                                   <td>
                                     <button 
@@ -1159,6 +1181,7 @@ function App() {
                       {showAmericanColumns && <th>סה"כ רווח/הפסד (₪)</th>}
                       <th>אחוז רווח/הפסד</th>
                       <th>אחוז שינוי יומי</th>
+                      <th>רווח יומי בדולר</th>
                       {showAmericanColumns && <th>השפעת שער חליפין</th>}
                       {isEditMode && <th>פעולות</th>}
                     </tr>
@@ -1299,6 +1322,9 @@ function App() {
                             <td className={(stock.dailyChangePercent || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
                               {stock.dailyChangePercent ? stock.dailyChangePercent.toFixed(2) : '0.00'}%
                             </td>
+                            <td className={(stock.dailyChangePercent || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
+                              {formatPriceWithSign(((stock.dailyChangePercent || 0) / 100) * totalCurrentValueUSD)} $
+                            </td>
                             {showAmericanColumns && (
                               <td className={exchangeRateImpact >= 0 ? 'profit-positive' : 'profit-negative'}>
                                 {formatPriceWithSign(exchangeRateImpact)} ₪
@@ -1391,6 +1417,9 @@ function App() {
                             </td>
                             <td className={(stocks[0].dailyChangePercent || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
                               {stocks[0].dailyChangePercent ? stocks[0].dailyChangePercent.toFixed(2) : '0.00'}%
+                            </td>
+                            <td className={(stocks[0].dailyChangePercent || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
+                              {formatPriceWithSign(((stocks[0].dailyChangePercent || 0) / 100) * totalCurrentValueUSD)} $
                             </td>
                             {showAmericanColumns && (
                               <td className={totalExchangeRateImpact >= 0 ? 'profit-positive' : 'profit-negative'}>
@@ -1531,6 +1560,9 @@ function App() {
                                 </td>
                                 <td className={(stock.dailyChangePercent || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
                                   {stock.dailyChangePercent ? stock.dailyChangePercent.toFixed(2) : '0.00'}%
+                                </td>
+                                <td className={(stock.dailyChangePercent || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
+                                  {formatPriceWithSign(((stock.dailyChangePercent || 0) / 100) * totalCurrentValueUSD)} $
                                 </td>
                                 {showAmericanColumns && (
                                   <td className={exchangeRateImpact >= 0 ? 'profit-positive' : 'profit-negative'}>

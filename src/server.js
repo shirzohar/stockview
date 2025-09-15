@@ -56,19 +56,14 @@ async function scrapeTaseFallbackWithAxios(taseUrl) {
 app.get('/api/israeli-stock/:id', async (req, res) => {
   const stockId = req.params.id;
   const taseUrl = `https://market.tase.co.il/he/market_data/security/${stockId}/major_data`;
-  console.log(`🔄 מבקש נתונים מ-TASE עבור מנייה ${stockId}`);
   try {
     const result = await scrapeTaseWithPuppeteer(taseUrl);
-    console.log(`✅ התקבל מ-TASE עבור ${stockId}: מחיר=${result.currentPrice}, שינוי=${result.changePercent}%`);
     return res.json({ currentPrice: result.currentPrice, changePercent: result.changePercent });
   } catch (err) {
-    console.log(`❌ Puppeteer נכשל עבור ${stockId}: ${err.message}`);
     try {
       const result = await scrapeTaseFallbackWithAxios(taseUrl);
-      console.log(`✅ גיבוי Axios הצליח עבור ${stockId}: מחיר=${result.currentPrice}, שינוי=${result.changePercent}%`);
       return res.json({ currentPrice: result.currentPrice, changePercent: result.changePercent });
     } catch (e2) {
-      console.log(`❌ גם Axios נכשל עבור ${stockId}: ${e2.message}`);
       return res.json({ currentPrice: null, changePercent: null });
     }
   }
