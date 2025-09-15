@@ -74,21 +74,7 @@ app.get('/api/israeli-stock/:id', async (req, res) => {
 });
 
 // נתיב דיבאג להחזרת דוגמת טקסט מהדף (לעזור בכיול רג'קס)
-app.get('/api/israeli-stock-debug/:id', async (req, res) => {
-  const stockId = req.params.id;
-  const taseUrl = `https://market.tase.co.il/he/market_data/security/${stockId}/major_data`;
-  try {
-    const result = await scrapeTaseWithPuppeteer(taseUrl);
-    return res.json(result);
-  } catch (err) {
-    try {
-      const result = await scrapeTaseFallbackWithAxios(taseUrl);
-      return res.json(result);
-    } catch (e2) {
-      return res.json({ currentPrice: null, changePercent: null, _debugSample: null, error: e2.message });
-    }
-  }
-});
+// Debug route removed by request
 
 app.listen(5000, () => {
   console.log('✅ Server running on http://localhost:5000');

@@ -33,7 +33,7 @@ function App() {
     }
   }, []);
 
-  // פונקציה לקבלת מחיר נוכחי ואחוז שינוי יומי מ-Bizportal (דרך השרת המקומי)
+  // פונקציה לקבלת מחיר נוכחי ואחוז שינוי יומי מ-TASE (דרך השרת המקומי)
   const fetchIsraeliStockPrice = async (stockId) => {
     try {
       console.log(`📡 [TASE] מבקש מחיר לנייר ${stockId}`);
