@@ -1,8 +1,10 @@
 import './App.css';
 import React, { useState, useEffect } from 'react';
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
 function App() {
   const [showForm, setShowForm] = useState(false);
+  const [showAnalysis, setShowAnalysis] = useState(false);
   const [isAddingNewStock, setIsAddingNewStock] = useState(false);
   const [israeliStocks, setIsraeliStocks] = useState([]);
   const [americanStocks, setAmericanStocks] = useState([]);
@@ -610,6 +612,140 @@ function App() {
     };
   };
 
+  // פונקציות לניתוח התיק
+  const calculatePortfolioAnalysis = () => {
+    // ניתוח פיזור לפי בורסות
+    const israeliTotalValue = israeliStocks.reduce((sum, stock) => {
+      return sum + ((stock.currentPrice || 0) * (stock.quantity || 0));
+    }, 0);
+
+    const americanTotalValueILS = americanStocks.reduce((sum, stock) => {
+      const currentExchangeRate = stock.currentExchangeRate || stock.exchangeRate || 0;
+      return sum + ((stock.currentPrice || 0) * (stock.quantity || 0) * currentExchangeRate);
+    }, 0);
+
+    const totalValueILS = israeliTotalValue + americanTotalValueILS;
+
+    // ניתוח פיזור לפי מניות
+    const stockDistribution = {};
+    
+    // מניות ישראליות
+    israeliStocks.forEach(stock => {
+      const value = (stock.currentPrice || 0) * (stock.quantity || 0);
+      if (!stockDistribution[stock.stockName]) {
+        stockDistribution[stock.stockName] = {
+          name: stock.stockName,
+          value: 0,
+          percentage: 0,
+          exchange: 'israeli',
+          profit: 0,
+          profitPercentage: 0
+        };
+      }
+      stockDistribution[stock.stockName].value += value;
+      const purchaseValue = (stock.purchasePrice || 0) * (stock.quantity || 0);
+      stockDistribution[stock.stockName].profit += (value - purchaseValue);
+    });
+
+    // מניות אמריקאיות
+    americanStocks.forEach(stock => {
+      const currentExchangeRate = stock.currentExchangeRate || stock.exchangeRate || 0;
+      const value = (stock.currentPrice || 0) * (stock.quantity || 0) * currentExchangeRate;
+      if (!stockDistribution[stock.stockName]) {
+        stockDistribution[stock.stockName] = {
+          name: stock.stockName,
+          value: 0,
+          percentage: 0,
+          exchange: 'american',
+          profit: 0,
+          profitPercentage: 0
+        };
+      }
+      stockDistribution[stock.stockName].value += value;
+      const purchaseValue = (stock.purchasePrice || 0) * (stock.quantity || 0) * currentExchangeRate;
+      stockDistribution[stock.stockName].profit += (value - purchaseValue);
+    });
+
+    // חישוב אחוזים
+    Object.values(stockDistribution).forEach(stock => {
+      stock.percentage = totalValueILS > 0 ? (stock.value / totalValueILS) * 100 : 0;
+      stock.profitPercentage = stock.value > 0 ? (stock.profit / (stock.value - stock.profit)) * 100 : 0;
+    });
+
+    // ניתוח פיזור לפי תאריכי קנייה
+    const monthlyDistribution = {};
+    const yearlyDistribution = {};
+    
+    [...israeliStocks, ...americanStocks].forEach(stock => {
+      const date = new Date(stock.purchaseDate);
+      const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const year = date.getFullYear();
+      
+      const value = stock.exchange === 'israeli' 
+        ? (stock.currentPrice || 0) * (stock.quantity || 0)
+        : (stock.currentPrice || 0) * (stock.quantity || 0) * (stock.currentExchangeRate || stock.exchangeRate || 0);
+      
+      if (!monthlyDistribution[month]) {
+        monthlyDistribution[month] = { value: 0, count: 0 };
+      }
+      monthlyDistribution[month].value += value;
+      monthlyDistribution[month].count += 1;
+      
+      if (!yearlyDistribution[year]) {
+        yearlyDistribution[year] = { value: 0, count: 0 };
+      }
+      yearlyDistribution[year].value += value;
+      yearlyDistribution[year].count += 1;
+    });
+
+    // דוחות מפורטים
+    const topPerformers = Object.values(stockDistribution)
+      .sort((a, b) => b.profit - a.profit)
+      .slice(0, 5);
+
+    const worstPerformers = Object.values(stockDistribution)
+      .sort((a, b) => a.profit - b.profit)
+      .slice(0, 5);
+
+    const largestPositions = Object.values(stockDistribution)
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+
+    return {
+      // פיזור לפי בורסות
+      exchangeDistribution: {
+        israeli: {
+          value: israeliTotalValue,
+          percentage: totalValueILS > 0 ? (israeliTotalValue / totalValueILS) * 100 : 0
+        },
+        american: {
+          value: americanTotalValueILS,
+          percentage: totalValueILS > 0 ? (americanTotalValueILS / totalValueILS) * 100 : 0
+        },
+        total: totalValueILS
+      },
+      
+      // פיזור לפי מניות
+      stockDistribution: Object.values(stockDistribution).sort((a, b) => b.value - a.value),
+      
+      // פיזור לפי תאריכים
+      monthlyDistribution: Object.entries(monthlyDistribution)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([month, data]) => ({ month, ...data })),
+      
+      yearlyDistribution: Object.entries(yearlyDistribution)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([year, data]) => ({ year, ...data })),
+      
+      // דוחות מפורטים
+      reports: {
+        topPerformers,
+        worstPerformers,
+        largestPositions
+      }
+    };
+  };
+
   if (showForm) {
     return (
       <div className="App">
@@ -737,6 +873,218 @@ function App() {
     );
   }
 
+  if (showAnalysis) {
+    const analysis = calculatePortfolioAnalysis();
+    
+    return (
+      <div className="App">
+        <div className="analysis-container">
+          <div className="analysis-content">
+            <h1 className="analysis-title">ניתוח התיק</h1>
+            
+            {/* כפתור חזרה */}
+            <button className="back-button" onClick={() => setShowAnalysis(false)}>
+              חזרה לדף הבית
+            </button>
+
+            {/* ניתוח פיזור לפי בורסות */}
+            <div className="analysis-section">
+              <h2 className="section-title">פיזור לפי בורסות</h2>
+              <div className="distribution-grid">
+                <div className="distribution-card">
+                  <h3>בורסה ישראלית</h3>
+                  <div className="distribution-value">
+                    {formatPriceWithSign(analysis.exchangeDistribution.israeli.value)} ₪
+                  </div>
+                  <div className="distribution-percentage">
+                    {analysis.exchangeDistribution.israeli.percentage.toFixed(1)}%
+                  </div>
+                </div>
+                <div className="distribution-card">
+                  <h3>בורסה אמריקאית</h3>
+                  <div className="distribution-value">
+                    {formatPriceWithSign(analysis.exchangeDistribution.american.value)} ₪
+                  </div>
+                  <div className="distribution-percentage">
+                    {analysis.exchangeDistribution.american.percentage.toFixed(1)}%
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* גרף עוגה לפיזור התיק */}
+            <div className="analysis-section">
+              <h2 className="section-title">גרף עוגה - פיזור התיק</h2>
+              <div className="pie-chart-container">
+                <div className="pie-chart-wrapper">
+                  <ResponsiveContainer width="60%" height={400}>
+                    <PieChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }} key="pie-chart">
+                      <Pie
+                        key="pie-data"
+                        data={[
+                          {
+                            name: 'בורסה ישראלית',
+                            value: analysis.exchangeDistribution.israeli.value,
+                            percentage: analysis.exchangeDistribution.israeli.percentage
+                          },
+                          {
+                            name: 'בורסה אמריקאית',
+                            value: analysis.exchangeDistribution.american.value,
+                            percentage: analysis.exchangeDistribution.american.percentage
+                          }
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={120}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        <Cell fill="#667eea" />
+                        <Cell fill="#764ba2" />
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                  
+                  {/* תוויות בצד */}
+                  <div className="pie-labels-side">
+                    <div className="pie-label-item">
+                      <div className="label-color" style={{backgroundColor: '#667eea'}}></div>
+                      <div className="label-content">
+                        <div className="label-name">בורסה ישראלית</div>
+                        <div className="label-value">{formatPriceWithSign(analysis.exchangeDistribution.israeli.value)} ₪</div>
+                        <div className="label-percentage">{analysis.exchangeDistribution.israeli.percentage.toFixed(1)}%</div>
+                      </div>
+                    </div>
+                    <div className="pie-label-item">
+                      <div className="label-color" style={{backgroundColor: '#764ba2'}}></div>
+                      <div className="label-content">
+                        <div className="label-name">בורסה אמריקאית</div>
+                        <div className="label-value">{formatPriceWithSign(analysis.exchangeDistribution.american.value)} ₪</div>
+                        <div className="label-percentage">{analysis.exchangeDistribution.american.percentage.toFixed(1)}%</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ניתוח פיזור לפי מניות */}
+            <div className="analysis-section">
+              <h2 className="section-title">פיזור לפי מניות</h2>
+              <div className="stocks-table-container">
+                <table className="analysis-table">
+                  <thead>
+                    <tr>
+                      <th>מנייה</th>
+                      <th>בורסה</th>
+                      <th>שווי נוכחי</th>
+                      <th>אחוז מהתיק</th>
+                      <th>רווח/הפסד</th>
+                      <th>אחוז רווח/הפסד</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analysis.stockDistribution.map((stock, index) => (
+                      <tr key={index}>
+                        <td>{stock.name}</td>
+                        <td>{stock.exchange === 'israeli' ? 'ישראלית' : 'אמריקאית'}</td>
+                        <td>{formatPriceWithSign(stock.value)} ₪</td>
+                        <td>{stock.percentage.toFixed(1)}%</td>
+                        <td className={stock.profit >= 0 ? 'profit-positive' : 'profit-negative'}>
+                          {formatPriceWithSign(stock.profit)} ₪
+                        </td>
+                        <td className={stock.profitPercentage >= 0 ? 'profit-positive' : 'profit-negative'}>
+                          {stock.profitPercentage.toFixed(1)}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* ניתוח פיזור לפי תאריכי קנייה */}
+            <div className="analysis-section">
+              <h2 className="section-title">פיזור לפי תאריכי קנייה</h2>
+              <div className="date-distribution-grid">
+                <div className="date-distribution-card">
+                  <h3>פיזור חודשי</h3>
+                  <div className="date-list">
+                    {analysis.monthlyDistribution.map((item, index) => (
+                      <div key={index} className="date-item">
+                        <span className="date-label">{item.month}</span>
+                        <span className="date-value">{formatPriceWithSign(item.value)} ₪</span>
+                        <span className="date-count">({item.count} מניות)</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="date-distribution-card">
+                  <h3>פיזור שנתי</h3>
+                  <div className="date-list">
+                    {analysis.yearlyDistribution.map((item, index) => (
+                      <div key={index} className="date-item">
+                        <span className="date-label">{item.year}</span>
+                        <span className="date-value">{formatPriceWithSign(item.value)} ₪</span>
+                        <span className="date-count">({item.count} מניות)</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* דוחות מפורטים */}
+            <div className="analysis-section">
+              <h2 className="section-title">דוחות מפורטים</h2>
+              <div className="reports-grid">
+                <div className="report-card">
+                  <h3>המניות הכי רווחיות</h3>
+                  <div className="report-list">
+                    {analysis.reports.topPerformers.map((stock, index) => (
+                      <div key={index} className="report-item">
+                        <span className="report-name">{stock.name}</span>
+                        <span className="report-profit profit-positive">
+                          {formatPriceWithSign(stock.profit)} ₪
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="report-card">
+                  <h3>המניות הכי מפסידות</h3>
+                  <div className="report-list">
+                    {analysis.reports.worstPerformers.map((stock, index) => (
+                      <div key={index} className="report-item">
+                        <span className="report-name">{stock.name}</span>
+                        <span className="report-profit profit-negative">
+                          {formatPriceWithSign(stock.profit)} ₪
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="report-card">
+                  <h3>הפוזיציות הכי גדולות</h3>
+                  <div className="report-list">
+                    {analysis.reports.largestPositions.map((stock, index) => (
+                      <div key={index} className="report-item">
+                        <span className="report-name">{stock.name}</span>
+                        <span className="report-value">
+                          {formatPriceWithSign(stock.value)} ₪
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="App">
       <div className="welcome-container">
@@ -826,6 +1174,9 @@ function App() {
           <div className="main-buttons-container">
             <button className="add-info-button" onClick={handleAddInfo}>
               הוספת מידע חדש
+            </button>
+            <button className="analysis-button" onClick={() => setShowAnalysis(true)}>
+              ניתוח התיק
             </button>
 
             {/* כפתורי בקרה */}
