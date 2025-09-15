@@ -852,6 +852,29 @@ body {
   font-weight: 600;
 }
 
+/* Volatility indicators */
+.volatility-indicator {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.volatility-indicator.low {
+  background-color: #d5f4e6;
+  color: #27ae60;
+}
+
+.volatility-indicator.medium {
+  background-color: #fef5e7;
+  color: #f39c12;
+}
+
+.volatility-indicator.high {
+  background-color: #fadbd8;
+  color: #e74c3c;
+}
+
 /* Edit mode styles */
 .editable-row {
   cursor: pointer;

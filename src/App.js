@@ -632,6 +632,16 @@ function App() {
     // מניות ישראליות
     israeliStocks.forEach(stock => {
       const value = (stock.currentPrice || 0) * (stock.quantity || 0);
+      const purchaseValue = (stock.purchasePrice || 0) * (stock.quantity || 0);
+      const profit = value - purchaseValue;
+      
+      // חישוב זמן החזקה
+      const purchaseDate = new Date(stock.purchaseDate);
+      const currentDate = new Date();
+      const daysHeld = Math.floor((currentDate - purchaseDate) / (1000 * 60 * 60 * 24));
+      const yearsHeld = daysHeld / 365;
+      
+      
       if (!stockDistribution[stock.stockName]) {
         stockDistribution[stock.stockName] = {
           name: stock.stockName,
@@ -639,18 +649,47 @@ function App() {
           percentage: 0,
           exchange: 'israeli',
           profit: 0,
-          profitPercentage: 0
+          profitPercentage: 0,
+          totalQuantity: 0,
+          avgPurchasePrice: 0,
+          totalPurchaseValue: 0,
+          daysHeld: 0,
+          yearsHeld: 0,
+          annualizedReturn: 0,
+          dailyChange: 0,
+          volatility: 0
         };
       }
+      
       stockDistribution[stock.stockName].value += value;
-      const purchaseValue = (stock.purchasePrice || 0) * (stock.quantity || 0);
-      stockDistribution[stock.stockName].profit += (value - purchaseValue);
+      stockDistribution[stock.stockName].profit += profit;
+      stockDistribution[stock.stockName].totalQuantity += (stock.quantity || 0);
+      stockDistribution[stock.stockName].totalPurchaseValue += purchaseValue;
+      stockDistribution[stock.stockName].daysHeld = Math.max(stockDistribution[stock.stockName].daysHeld, daysHeld);
+      stockDistribution[stock.stockName].yearsHeld = Math.max(stockDistribution[stock.stockName].yearsHeld, yearsHeld);
+      stockDistribution[stock.stockName].dailyChange = stock.dailyChangePercent || 0;
+      
+      // חישוב תשואה שנתית
+      if (yearsHeld > 0 && purchaseValue > 0) {
+        const annualizedReturn = Math.pow((value / purchaseValue), (1 / yearsHeld)) - 1;
+        stockDistribution[stock.stockName].annualizedReturn = annualizedReturn;
+      }
     });
 
     // מניות אמריקאיות
     americanStocks.forEach(stock => {
       const currentExchangeRate = stock.currentExchangeRate || stock.exchangeRate || 0;
       const value = (stock.currentPrice || 0) * (stock.quantity || 0) * currentExchangeRate;
+      const purchaseValue = (stock.purchasePrice || 0) * (stock.quantity || 0) * currentExchangeRate;
+      const profit = value - purchaseValue;
+      
+      // חישוב זמן החזקה
+      const purchaseDate = new Date(stock.purchaseDate);
+      const currentDate = new Date();
+      const daysHeld = Math.floor((currentDate - purchaseDate) / (1000 * 60 * 60 * 24));
+      const yearsHeld = daysHeld / 365;
+      
+      
       if (!stockDistribution[stock.stockName]) {
         stockDistribution[stock.stockName] = {
           name: stock.stockName,
@@ -658,18 +697,46 @@ function App() {
           percentage: 0,
           exchange: 'american',
           profit: 0,
-          profitPercentage: 0
+          profitPercentage: 0,
+          totalQuantity: 0,
+          avgPurchasePrice: 0,
+          totalPurchaseValue: 0,
+          daysHeld: 0,
+          yearsHeld: 0,
+          annualizedReturn: 0,
+          dailyChange: 0,
+          volatility: 0
         };
       }
+      
       stockDistribution[stock.stockName].value += value;
-      const purchaseValue = (stock.purchasePrice || 0) * (stock.quantity || 0) * currentExchangeRate;
-      stockDistribution[stock.stockName].profit += (value - purchaseValue);
+      stockDistribution[stock.stockName].profit += profit;
+      stockDistribution[stock.stockName].totalQuantity += (stock.quantity || 0);
+      stockDistribution[stock.stockName].totalPurchaseValue += purchaseValue;
+      stockDistribution[stock.stockName].daysHeld = Math.max(stockDistribution[stock.stockName].daysHeld, daysHeld);
+      stockDistribution[stock.stockName].yearsHeld = Math.max(stockDistribution[stock.stockName].yearsHeld, yearsHeld);
+      stockDistribution[stock.stockName].dailyChange = stock.dailyChangePercent || 0;
+      
+      // חישוב תשואה שנתית
+      if (yearsHeld > 0 && purchaseValue > 0) {
+        const annualizedReturn = Math.pow((value / purchaseValue), (1 / yearsHeld)) - 1;
+        stockDistribution[stock.stockName].annualizedReturn = annualizedReturn;
+      }
     });
 
-    // חישוב אחוזים
+    // חישוב נתונים נוספים
     Object.values(stockDistribution).forEach(stock => {
       stock.percentage = totalValueILS > 0 ? (stock.value / totalValueILS) * 100 : 0;
-      stock.profitPercentage = stock.value > 0 ? (stock.profit / (stock.value - stock.profit)) * 100 : 0;
+      stock.profitPercentage = stock.totalPurchaseValue > 0 ? (stock.profit / stock.totalPurchaseValue) * 100 : 0;
+      stock.avgPurchasePrice = stock.totalQuantity > 0 ? stock.totalPurchaseValue / stock.totalQuantity : 0;
+      
+      // חישוב תשואה שנתית כוללת
+      if (stock.yearsHeld > 0 && stock.totalPurchaseValue > 0) {
+        stock.annualizedReturn = Math.pow((stock.value / stock.totalPurchaseValue), (1 / stock.yearsHeld)) - 1;
+      }
+      
+      // חישוב וולטיליות (פשטני)
+      stock.volatility = Math.abs(stock.dailyChange) * 1.5; // קירוב פשטני לוולטיליות
     });
 
     // ניתוח פיזור לפי תאריכי קנייה
@@ -981,6 +1048,9 @@ function App() {
                       <th>אחוז מהתיק</th>
                       <th>רווח/הפסד</th>
                       <th>אחוז רווח/הפסד</th>
+                      <th>זמן החזקה</th>
+                      <th>תשואה שנתית</th>
+                      <th>וולטיליות</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -995,6 +1065,15 @@ function App() {
                         </td>
                         <td className={stock.profitPercentage >= 0 ? 'profit-positive' : 'profit-negative'}>
                           {stock.profitPercentage.toFixed(1)}%
+                        </td>
+                        <td>{stock.daysHeld > 365 ? `${stock.yearsHeld.toFixed(1)} שנים` : `${stock.daysHeld} ימים`}</td>
+                        <td className={stock.annualizedReturn >= 0 ? 'profit-positive' : 'profit-negative'}>
+                          {(stock.annualizedReturn * 100).toFixed(1)}%
+                        </td>
+                        <td>
+                          <span className={`volatility-indicator ${stock.volatility > 3 ? 'high' : stock.volatility > 1.5 ? 'medium' : 'low'}`}>
+                            {stock.volatility.toFixed(1)}%
+                          </span>
                         </td>
                       </tr>
                     ))}
