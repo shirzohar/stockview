@@ -33,6 +33,21 @@ function App() {
     }
   }, []);
 
+  // פונקציה לקבלת מחיר נוכחי ואחוז שינוי יומי מ-Bizportal (דרך השרת המקומי)
+  const fetchIsraeliStockPrice = async (stockId) => {
+    try {
+      console.log(`📡 [TASE] מבקש מחיר לנייר ${stockId}`);
+      const response = await fetch(`http://localhost:5000/api/israeli-stock/${stockId}`);
+      if (!response.ok) throw new Error('שגיאה בקריאת נתונים מהשרת');
+      const json = await response.json();
+      console.log(`✅ [TASE] התקבל עבור ${stockId}:`, json);
+      return json;
+    } catch (error) {
+      console.error('Error fetching Israeli stock price (TASE):', error);
+      return null;
+    }
+  };
+
   // עדכון אוטומטי של מחירי מניות כל 10 שניות
   useEffect(() => {
     const interval = setInterval(async () => {
@@ -40,8 +55,21 @@ function App() {
       if (israeliStocks.length > 0) {
         const updatedIsraeliStocks = [];
         for (const stock of israeliStocks) {
-          // מנייה ישראלית - לא מעדכנים מחיר
-          updatedIsraeliStocks.push(stock);
+          console.log(`🔄 מעדכן מנייה ישראלית id=${stock.stockName}`);
+          const priceData = await fetchIsraeliStockPrice(stock.stockName); // stockName מכיל את ה-id
+          if (priceData) {
+            // הצגה באגורות כפי שביקשת (ללא המרה)
+            const normalizedPrice = priceData.currentPrice;
+            updatedIsraeliStocks.push({
+              ...stock,
+              currentPrice: normalizedPrice,
+              dailyChangePercent: priceData.changePercent
+            });
+            console.log(`🟢 עודכן ${stock.stockName}: מחיר=${normalizedPrice} שינוי=${priceData.changePercent}%`);
+          } else {
+            updatedIsraeliStocks.push(stock);
+            console.log(`⚠️ לא התקבל מחיר עבור ${stock.stockName}, שומר ערכים קיימים`);
+          }
         }
         setIsraeliStocks(updatedIsraeliStocks);
       }
@@ -175,9 +203,17 @@ function App() {
         dailyChangePercent = priceData.changePercent || 0;
       }
     } else if (formData.exchange === 'israeli') {
-      // מנייה ישראלית - לא מעדכנים מחיר
-      currentPrice = 0;
-      dailyChangePercent = 0;
+      const stockId = formData.stockName.trim();
+      console.log(`📝 [Form Submit] מבקש מחיר מ-TASE לנייר ${stockId}`);
+      const priceData = await fetchIsraeliStockPrice(stockId);
+      if (priceData) {
+        const normalizedPrice = priceData.currentPrice || 0; // מציגים באגורות
+        currentPrice = normalizedPrice;
+        dailyChangePercent = priceData.changePercent || 0;
+        console.log(`✅ [Form Submit] מחיר שהתקבל ל-${stockId}: ${currentPrice} ₪, שינוי ${dailyChangePercent}%`);
+      } else {
+        console.log(`❌ [Form Submit] לא התקבל מחיר ל-${stockId}`);
+      }
     }
     
     // יצירת אובייקט עם הנתונים
