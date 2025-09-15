@@ -741,8 +741,7 @@ function App() {
     <div className="App">
       <div className="welcome-container">
         <div className="welcome-content">
-          <h1 className="welcome-title">ברוך הבא למערכת מעקב אחרי תיק ההשקעות שלך</h1>
-          <p className="welcome-subtitle">ניהול חכם של ההשקעות שלך במקום אחד</p>
+          <h1 className="welcome-title">תיק ההשקעות שלך</h1>
           
           {/* סיכום התיק */}
           {(israeliStocks.length > 0 || americanStocks.length > 0) && (
@@ -875,7 +874,7 @@ function App() {
                       <th>סה"כ רווח/הפסד בש"ח</th>
                       <th>אחוז רווח/הפסד</th>
                       <th>אחוז שינוי יומי</th>
-                      <th>רווח יומי בש"ח</th>
+                      <th>רווח/הפסד יומי בש"ח</th>
                       {isEditMode && <th>פעולות</th>}
                     </tr>
                   </thead>
@@ -1167,9 +1166,9 @@ function App() {
                   <thead>
                     <tr>
                       <th>שם מנייה</th>
-                      <th>תאריך קנייה</th>
-                      <th>מחיר קנייה</th>
-                      <th>כמות</th>
+                      {showAmericanColumns && <th>תאריך קנייה</th>}
+                      {showAmericanColumns && <th>מחיר קנייה</th>}
+                      {showAmericanColumns && <th>כמות</th>}
                       <th>סה"כ רכישה בדולר</th>
                       {showAmericanColumns && <th>סה"כ רכישה בשקל</th>}
                       {showAmericanColumns && <th>שער חליפין ביום הקנייה</th>}
@@ -1181,7 +1180,7 @@ function App() {
                       {showAmericanColumns && <th>סה"כ רווח/הפסד (₪)</th>}
                       <th>אחוז רווח/הפסד</th>
                       <th>אחוז שינוי יומי</th>
-                      <th>רווח יומי בדולר</th>
+                      <th>רווח/הפסד יומי בדולר</th>
                       {showAmericanColumns && <th>השפעת שער חליפין</th>}
                       {isEditMode && <th>פעולות</th>}
                     </tr>
@@ -1229,59 +1228,65 @@ function App() {
                                 stock.stockName
                               )}
                             </td>
-                            <td 
-                              onClick={() => handleCellClick(stock.id, 'purchaseDate', 'american')}
-                              className={isEditMode ? 'editable-cell' : ''}
-                            >
-                              {editingField === `${stock.id}-purchaseDate` ? (
-                                <input
-                                  type="date"
-                                  value={stock.purchaseDate}
-                                  onChange={(e) => handleInlineEdit(stock.id, 'purchaseDate', e.target.value, 'american')}
-                                  onBlur={finishInlineEdit}
-                                  onKeyPress={(e) => handleKeyPress(e, stock.id, 'purchaseDate', 'american')}
-                                  autoFocus
-                                />
-                              ) : (
-                                formatDate(stock.purchaseDate)
-                              )}
-                            </td>
-                            <td 
-                              onClick={() => handleCellClick(stock.id, 'purchasePrice', 'american')}
-                              className={isEditMode ? 'editable-cell' : ''}
-                            >
-                              {editingField === `${stock.id}-purchasePrice` ? (
-                                <input
-                                  type="number"
-                                  value={stock.purchasePrice}
-                                  onChange={(e) => handleInlineEdit(stock.id, 'purchasePrice', parseFloat(e.target.value), 'american')}
-                                  onBlur={finishInlineEdit}
-                                  onKeyPress={(e) => handleKeyPress(e, stock.id, 'purchasePrice', 'american')}
-                                  autoFocus
-                                  step="0.01"
-                                />
-                              ) : (
-                                formatPriceWithSign(stock.purchasePrice) + ' $'
-                              )}
-                            </td>
-                            <td 
-                              onClick={() => handleCellClick(stock.id, 'quantity', 'american')}
-                              className={isEditMode ? 'editable-cell' : ''}
-                            >
-                              {editingField === `${stock.id}-quantity` ? (
-                                <input
-                                  type="number"
-                                  value={stock.quantity}
-                                  onChange={(e) => handleInlineEdit(stock.id, 'quantity', parseInt(e.target.value), 'american')}
-                                  onBlur={finishInlineEdit}
-                                  onKeyPress={(e) => handleKeyPress(e, stock.id, 'quantity', 'american')}
-                                  autoFocus
-                                  min="1"
-                                />
-                              ) : (
-                                stock.quantity
-                              )}
-                            </td>
+                            {showAmericanColumns && (
+                              <td 
+                                onClick={() => handleCellClick(stock.id, 'purchaseDate', 'american')}
+                                className={isEditMode ? 'editable-cell' : ''}
+                              >
+                                {editingField === `${stock.id}-purchaseDate` ? (
+                                  <input
+                                    type="date"
+                                    value={stock.purchaseDate}
+                                    onChange={(e) => handleInlineEdit(stock.id, 'purchaseDate', e.target.value, 'american')}
+                                    onBlur={finishInlineEdit}
+                                    onKeyPress={(e) => handleKeyPress(e, stock.id, 'purchaseDate', 'american')}
+                                    autoFocus
+                                  />
+                                ) : (
+                                  formatDate(stock.purchaseDate)
+                                )}
+                              </td>
+                            )}
+                            {showAmericanColumns && (
+                              <td 
+                                onClick={() => handleCellClick(stock.id, 'purchasePrice', 'american')}
+                                className={isEditMode ? 'editable-cell' : ''}
+                              >
+                                {editingField === `${stock.id}-purchasePrice` ? (
+                                  <input
+                                    type="number"
+                                    value={stock.purchasePrice}
+                                    onChange={(e) => handleInlineEdit(stock.id, 'purchasePrice', parseFloat(e.target.value), 'american')}
+                                    onBlur={finishInlineEdit}
+                                    onKeyPress={(e) => handleKeyPress(e, stock.id, 'purchasePrice', 'american')}
+                                    autoFocus
+                                    step="0.01"
+                                  />
+                                ) : (
+                                  formatPriceWithSign(stock.purchasePrice) + ' $'
+                                )}
+                              </td>
+                            )}
+                            {showAmericanColumns && (
+                              <td 
+                                onClick={() => handleCellClick(stock.id, 'quantity', 'american')}
+                                className={isEditMode ? 'editable-cell' : ''}
+                              >
+                                {editingField === `${stock.id}-quantity` ? (
+                                  <input
+                                    type="number"
+                                    value={stock.quantity}
+                                    onChange={(e) => handleInlineEdit(stock.id, 'quantity', parseInt(e.target.value), 'american')}
+                                    onBlur={finishInlineEdit}
+                                    onKeyPress={(e) => handleKeyPress(e, stock.id, 'quantity', 'american')}
+                                    autoFocus
+                                    min="1"
+                                  />
+                                ) : (
+                                  stock.quantity
+                                )}
+                              </td>
+                            )}
                             <td>{formatPriceWithSign(totalPurchaseUSD)} $</td>
                             {showAmericanColumns && <td>{formatPriceWithSign(totalPurchaseILS)} ₪</td>}
                             {showAmericanColumns && (
@@ -1394,9 +1399,9 @@ function App() {
                               </button>
                               {stockName}
                             </td>
-                            <td>{isExpanded ? '' : 'פתח קיבוץ'}</td>
-                            <td>{isExpanded ? '' : 'פתח קיבוץ'}</td>
-                            <td>{summary.totalQuantity}</td>
+                            {showAmericanColumns && <td>{isExpanded ? '' : 'פתח קיבוץ'}</td>}
+                            {showAmericanColumns && <td>{isExpanded ? '' : 'פתח קיבוץ'}</td>}
+                            {showAmericanColumns && <td>{summary.totalQuantity}</td>}
                             <td>{formatPriceWithSign(totalPurchaseUSD)} $</td>
                             {showAmericanColumns && <td>{formatPriceWithSign(totalPurchaseILS)} ₪</td>}
                             {showAmericanColumns && <td>{isExpanded ? '' : 'פתח קיבוץ'}</td>}
@@ -1468,59 +1473,65 @@ function App() {
                                     stock.stockName
                                   )}
                                 </td>
-                                <td 
-                                  onClick={() => handleCellClick(stock.id, 'purchaseDate', 'american')}
-                                  className={isEditMode ? 'editable-cell' : ''}
-                                >
-                                  {editingField === `${stock.id}-purchaseDate` ? (
-                                    <input
-                                      type="date"
-                                      value={stock.purchaseDate}
-                                      onChange={(e) => handleInlineEdit(stock.id, 'purchaseDate', e.target.value, 'american')}
-                                      onBlur={finishInlineEdit}
-                                      onKeyPress={(e) => handleKeyPress(e, stock.id, 'purchaseDate', 'american')}
-                                      autoFocus
-                                    />
-                                  ) : (
-                                    formatDate(stock.purchaseDate)
-                                  )}
-                                </td>
-                                <td 
-                                  onClick={() => handleCellClick(stock.id, 'purchasePrice', 'american')}
-                                  className={isEditMode ? 'editable-cell' : ''}
-                                >
-                                  {editingField === `${stock.id}-purchasePrice` ? (
-                                    <input
-                                      type="number"
-                                      value={stock.purchasePrice}
-                                      onChange={(e) => handleInlineEdit(stock.id, 'purchasePrice', parseFloat(e.target.value), 'american')}
-                                      onBlur={finishInlineEdit}
-                                      onKeyPress={(e) => handleKeyPress(e, stock.id, 'purchasePrice', 'american')}
-                                      autoFocus
-                                      step="0.01"
-                                    />
-                                  ) : (
-                                    formatPriceWithSign(stock.purchasePrice) + ' $'
-                                  )}
-                                </td>
-                                <td 
-                                  onClick={() => handleCellClick(stock.id, 'quantity', 'american')}
-                                  className={isEditMode ? 'editable-cell' : ''}
-                                >
-                                  {editingField === `${stock.id}-quantity` ? (
-                                    <input
-                                      type="number"
-                                      value={stock.quantity}
-                                      onChange={(e) => handleInlineEdit(stock.id, 'quantity', parseInt(e.target.value), 'american')}
-                                      onBlur={finishInlineEdit}
-                                      onKeyPress={(e) => handleKeyPress(e, stock.id, 'quantity', 'american')}
-                                      autoFocus
-                                      min="1"
-                                    />
-                                  ) : (
-                                    stock.quantity
-                                  )}
-                                </td>
+                                {showAmericanColumns && (
+                                  <td 
+                                    onClick={() => handleCellClick(stock.id, 'purchaseDate', 'american')}
+                                    className={isEditMode ? 'editable-cell' : ''}
+                                  >
+                                    {editingField === `${stock.id}-purchaseDate` ? (
+                                      <input
+                                        type="date"
+                                        value={stock.purchaseDate}
+                                        onChange={(e) => handleInlineEdit(stock.id, 'purchaseDate', e.target.value, 'american')}
+                                        onBlur={finishInlineEdit}
+                                        onKeyPress={(e) => handleKeyPress(e, stock.id, 'purchaseDate', 'american')}
+                                        autoFocus
+                                      />
+                                    ) : (
+                                      formatDate(stock.purchaseDate)
+                                    )}
+                                  </td>
+                                )}
+                                {showAmericanColumns && (
+                                  <td 
+                                    onClick={() => handleCellClick(stock.id, 'purchasePrice', 'american')}
+                                    className={isEditMode ? 'editable-cell' : ''}
+                                  >
+                                    {editingField === `${stock.id}-purchasePrice` ? (
+                                      <input
+                                        type="number"
+                                        value={stock.purchasePrice}
+                                        onChange={(e) => handleInlineEdit(stock.id, 'purchasePrice', parseFloat(e.target.value), 'american')}
+                                        onBlur={finishInlineEdit}
+                                        onKeyPress={(e) => handleKeyPress(e, stock.id, 'purchasePrice', 'american')}
+                                        autoFocus
+                                        step="0.01"
+                                      />
+                                    ) : (
+                                      formatPriceWithSign(stock.purchasePrice) + ' $'
+                                    )}
+                                  </td>
+                                )}
+                                {showAmericanColumns && (
+                                  <td 
+                                    onClick={() => handleCellClick(stock.id, 'quantity', 'american')}
+                                    className={isEditMode ? 'editable-cell' : ''}
+                                  >
+                                    {editingField === `${stock.id}-quantity` ? (
+                                      <input
+                                        type="number"
+                                        value={stock.quantity}
+                                        onChange={(e) => handleInlineEdit(stock.id, 'quantity', parseInt(e.target.value), 'american')}
+                                        onBlur={finishInlineEdit}
+                                        onKeyPress={(e) => handleKeyPress(e, stock.id, 'quantity', 'american')}
+                                        autoFocus
+                                        min="1"
+                                      />
+                                    ) : (
+                                      stock.quantity
+                                    )}
+                                  </td>
+                                )}
                                 <td>{formatPriceWithSign(totalPurchaseUSD)} $</td>
                                 {showAmericanColumns && <td>{formatPriceWithSign(totalPurchaseILS)} ₪</td>}
                                 {showAmericanColumns && (
