@@ -51,29 +51,49 @@ function App() {
     const interval = setInterval(async () => {
       // לא מעדכן אם המשתמש נמצא במצב עריכה או מוסיף מנייה חדשה
       if (isEditMode || editingField || isAddingNewStock) {
-        console.log('⏸️ עדכון אוטומטי מושהה - משתמש בעריכה או מוסיף מנייה חדשה');
         return;
       }
-      console.log('🔄 עדכון אוטומטי מתחיל...');
       
       // עדכון מניות ישראליות
       if (israeliStocks.length > 0) {
+        // קיבוץ מניות לפי שם (ID) כדי לבצע בקשה אחת לכל מנייה
+        const stocksBySymbol = {};
+        israeliStocks.forEach(stock => {
+          if (!stocksBySymbol[stock.stockName]) {
+            stocksBySymbol[stock.stockName] = [];
+          }
+          stocksBySymbol[stock.stockName].push(stock);
+        });
+
         const updatedIsraeliStocks = [];
-        for (const stock of israeliStocks) {
-          const priceData = await fetchIsraeliStockPrice(stock.stockName); // stockName מכיל את ה-id
+        
+        // עבור כל מנייה ייחודית, בקש נתונים פעם אחת
+        for (const [stockSymbol, stocks] of Object.entries(stocksBySymbol)) {
+          console.log(`🔄 מבקש נתונים עבור מנייה ${stockSymbol} (${stocks.length} שורות)`);
+          const priceData = await fetchIsraeliStockPrice(stockSymbol);
+          
           if (priceData && priceData.currentPrice !== null) {
             // המרה מאגורות לשקלים
             const normalizedPrice = priceData.currentPrice / 100;
-            updatedIsraeliStocks.push({
-              ...stock,
-              currentPrice: normalizedPrice,
-              dailyChangePercent: priceData.changePercent
+            console.log(`✅ התקבל מחיר ${normalizedPrice} ₪ עבור ${stockSymbol}`);
+            
+            // עדכן את כל השורות של המנייה הזו
+            stocks.forEach(stock => {
+              updatedIsraeliStocks.push({
+                ...stock,
+                currentPrice: normalizedPrice,
+                dailyChangePercent: priceData.changePercent
+              });
             });
           } else {
-            // אם לא התקבל מחיר, שומרים את המנייה עם הנתונים הקיימים
-            updatedIsraeliStocks.push(stock);
+            console.log(`❌ לא התקבל מחיר עבור ${stockSymbol}`);
+            // אם לא התקבל מחיר, שומרים את המניות עם הנתונים הקיימים
+            stocks.forEach(stock => {
+              updatedIsraeliStocks.push(stock);
+            });
           }
         }
+        
         setIsraeliStocks(updatedIsraeliStocks);
         // שמירה עם המניות האמריקאיות הנוכחיות
         setAmericanStocks(currentAmericanStocks => {
@@ -87,30 +107,54 @@ function App() {
         // קבלת שער החליפין הנוכחי
         const currentExchangeRate = await fetchExchangeRate();
         
+        // קיבוץ מניות לפי שם כדי לבצע בקשה אחת לכל מנייה
+        const stocksBySymbol = {};
+        americanStocks.forEach(stock => {
+          if (!stocksBySymbol[stock.stockName]) {
+            stocksBySymbol[stock.stockName] = [];
+          }
+          stocksBySymbol[stock.stockName].push(stock);
+        });
+
         const updatedAmericanStocks = [];
-        for (const stock of americanStocks) {
+        
+        // עבור כל מנייה ייחודית, בקש נתונים פעם אחת
+        for (const [stockSymbol, stocks] of Object.entries(stocksBySymbol)) {
+          console.log(`🔄 מבקש נתונים עבור מנייה אמריקאית ${stockSymbol} (${stocks.length} שורות)`);
           try {
-            const priceData = await fetchCurrentPrice(stock.stockName);
+            const priceData = await fetchCurrentPrice(stockSymbol);
             if (priceData !== null) {
-              updatedAmericanStocks.push({
-                ...stock, 
-                currentPrice: priceData.currentPrice,
-                dailyChangePercent: priceData.changePercent,
-                currentExchangeRate: currentExchangeRate || stock.currentExchangeRate || stock.exchangeRate
+              console.log(`✅ התקבל מחיר ${priceData.currentPrice} $ עבור ${stockSymbol}`);
+              
+              // עדכן את כל השורות של המנייה הזו
+              stocks.forEach(stock => {
+                updatedAmericanStocks.push({
+                  ...stock, 
+                  currentPrice: priceData.currentPrice,
+                  dailyChangePercent: priceData.changePercent,
+                  currentExchangeRate: currentExchangeRate || stock.currentExchangeRate || stock.exchangeRate
+                });
               });
             } else {
+              console.log(`❌ לא התקבל מחיר עבור ${stockSymbol}`);
+              stocks.forEach(stock => {
+                updatedAmericanStocks.push({
+                  ...stock,
+                  currentExchangeRate: currentExchangeRate || stock.currentExchangeRate || stock.exchangeRate
+                });
+              });
+            }
+          } catch (error) {
+            console.log(`❌ שגיאה בקבלת מחיר עבור ${stockSymbol}: ${error.message}`);
+            stocks.forEach(stock => {
               updatedAmericanStocks.push({
                 ...stock,
                 currentExchangeRate: currentExchangeRate || stock.currentExchangeRate || stock.exchangeRate
               });
-            }
-          } catch (error) {
-            updatedAmericanStocks.push({
-              ...stock,
-              currentExchangeRate: currentExchangeRate || stock.currentExchangeRate || stock.exchangeRate
             });
           }
         }
+        
         setAmericanStocks(updatedAmericanStocks);
         // שמירה עם המניות הישראליות הנוכחיות
         setIsraeliStocks(currentIsraeliStocks => {
