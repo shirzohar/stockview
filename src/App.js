@@ -589,16 +589,47 @@ function App() {
     const dailyProfitILS = (weightedDailyChange / 100) * (israeliSummary.totalCurrentValueILS + americanSummary.totalCurrentValueILS);
     const dailyProfitUSD = (weightedDailyChange / 100) * americanSummary.totalCurrentValueUSD;
 
+    // רווח יומי נפרד לכל בורסה
+    const israeliDailyProfitILS = israeliStocks.reduce((sum, stock) => {
+      const totalCurrentValue = (stock.currentPrice || 0) * (stock.quantity || 0);
+      return sum + ((stock.dailyChangePercent || 0) / 100) * totalCurrentValue;
+    }, 0);
+
+    const americanDailyProfitUSD = americanStocks.reduce((sum, stock) => {
+      const totalCurrentValueUSD = (stock.currentPrice || 0) * (stock.quantity || 0);
+      return sum + ((stock.dailyChangePercent || 0) / 100) * totalCurrentValueUSD;
+    }, 0);
+
+    // אחוזי רווח כוללים פר בורסה
+    const israeliProfitILS = israeliSummary.totalCurrentValueILS - israeliSummary.totalPurchaseILS;
+    const israeliProfitPercent = israeliSummary.totalPurchaseILS > 0 ? (israeliProfitILS / israeliSummary.totalPurchaseILS) * 100 : 0;
+    const israeliDailyPercent = israeliSummary.totalCurrentValueILS > 0 ? (israeliDailyProfitILS / israeliSummary.totalCurrentValueILS) * 100 : 0;
+
+    const americanProfitUSD = americanSummary.totalCurrentValueUSD - americanSummary.totalPurchaseUSD;
+    const americanProfitPercent = americanSummary.totalPurchaseUSD > 0 ? (americanProfitUSD / americanSummary.totalPurchaseUSD) * 100 : 0;
+    const americanDailyPercent = americanSummary.totalCurrentValueUSD > 0 ? (americanDailyProfitUSD / americanSummary.totalCurrentValueUSD) * 100 : 0;
+
     return {
       // סיכום בשקלים
       totalPurchaseILS: israeliSummary.totalPurchaseILS + americanSummary.totalPurchaseILS,
       totalCurrentValueILS: israeliSummary.totalCurrentValueILS + americanSummary.totalCurrentValueILS,
       totalProfitILS: israeliSummary.totalProfitILS + americanSummary.totalProfitILS,
+
+      // סיכום ישראלי בלבד
+      israeliOnlyPurchaseILS: israeliSummary.totalPurchaseILS,
+      israeliOnlyCurrentValueILS: israeliSummary.totalCurrentValueILS,
+      israeliOnlyProfitILS: israeliSummary.totalProfitILS,
+      israeliOnlyProfitPercent: israeliProfitPercent,
+      israeliOnlyDailyPercent: israeliDailyPercent,
+      israeliOnlyDailyProfitILS: israeliDailyProfitILS,
       
       // סיכום בדולרים
       totalPurchaseUSD: americanSummary.totalPurchaseUSD,
       totalCurrentValueUSD: americanSummary.totalCurrentValueUSD,
       totalProfitUSD: americanSummary.totalProfitUSD,
+      americanOnlyProfitPercent: americanProfitPercent,
+      americanOnlyDailyPercent: americanDailyPercent,
+      americanOnlyDailyProfitUSD: americanDailyProfitUSD,
       
       // אחוז שינוי יומי משוקלל
       weightedDailyChange: weightedDailyChange,
@@ -606,6 +637,8 @@ function App() {
       // רווח יומי בשקלים ובדולרים
       dailyProfitILS: dailyProfitILS,
       dailyProfitUSD: dailyProfitUSD,
+      israeliDailyProfitILS: israeliDailyProfitILS,
+      americanDailyProfitUSD: americanDailyProfitUSD,
       
       // השפעת שער חליפין כוללת
       totalExchangeImpact: americanSummary.totalExchangeImpact
@@ -1178,28 +1211,46 @@ function App() {
                 const summary = calculatePortfolioSummary();
                 return (
                   <div className="summary-grid">
-                    {/* סיכום בשקלים */}
+                    {/* בורסה ישראל */}
                     <div className="summary-section">
-                      <h3 className="summary-section-title">סיכום בשקלים (₪)</h3>
+                      <h3 className="summary-section-title">בורסה ישראל (₪)</h3>
                       <div className="summary-item">
                         <span className="summary-label">סה"כ השקעה:</span>
-                        <span className="summary-value">{formatPriceWithSign(summary.totalPurchaseILS)} ₪</span>
+                        <span className="summary-value">{formatPriceWithSign(summary.israeliOnlyPurchaseILS)} ₪</span>
                       </div>
                       <div className="summary-item">
                         <span className="summary-label">סה"כ שווי:</span>
-                        <span className="summary-value">{formatPriceWithSign(summary.totalCurrentValueILS)} ₪</span>
+                        <span className="summary-value">{formatPriceWithSign(summary.israeliOnlyCurrentValueILS)} ₪</span>
                       </div>
                       <div className="summary-item">
-                        <span className="summary-label">סה"כ רווח:</span>
-                        <span className={`summary-value ${summary.totalProfitILS >= 0 ? 'profit-positive' : 'profit-negative'}`}>
-                          {formatPriceWithSign(summary.totalProfitILS)} ₪
+                        <span className="summary-label">סה"כ רווח/הפסד:</span>
+                        <span className={`summary-value ${summary.israeliOnlyProfitILS >= 0 ? 'profit-positive' : 'profit-negative'}`}>
+                          {formatPriceWithSign(summary.israeliOnlyProfitILS)} ₪
+                        </span>
+                      </div>
+                      <div className="summary-item">
+                        <span className="summary-label">אחוז רווח/הפסד כללי:</span>
+                        <span className={`summary-value ${summary.israeliOnlyProfitPercent >= 0 ? 'profit-positive' : 'profit-negative'}`}>
+                          {summary.israeliOnlyProfitPercent.toFixed(2)}%
+                        </span>
+                      </div>
+                      <div className="summary-item">
+                        <span className="summary-label">אחוז רווח/הפסד יומי:</span>
+                        <span className={`summary-value ${summary.israeliOnlyDailyPercent >= 0 ? 'profit-positive' : 'profit-negative'}`}>
+                          {summary.israeliOnlyDailyPercent.toFixed(2)}%
+                        </span>
+                      </div>
+                      <div className="summary-item">
+                        <span className="summary-label">רווח/הפסד יומי:</span>
+                        <span className={`summary-value ${summary.israeliOnlyDailyProfitILS >= 0 ? 'profit-positive' : 'profit-negative'}`}>
+                          {formatPriceWithSign(summary.israeliOnlyDailyProfitILS)} ₪
                         </span>
                       </div>
                     </div>
 
-                    {/* סיכום בדולרים */}
+                    {/* בורסה אמריקאית */}
                     <div className="summary-section">
-                      <h3 className="summary-section-title">סיכום בדולרים ($)</h3>
+                      <h3 className="summary-section-title">בורסה אמריקאית ($)</h3>
                       <div className="summary-item">
                         <span className="summary-label">סה"כ השקעה:</span>
                         <span className="summary-value">{formatPriceWithSign(summary.totalPurchaseUSD)} $</span>
@@ -1209,32 +1260,46 @@ function App() {
                         <span className="summary-value">{formatPriceWithSign(summary.totalCurrentValueUSD)} $</span>
                       </div>
                       <div className="summary-item">
-                        <span className="summary-label">סה"כ רווח:</span>
+                        <span className="summary-label">סה"כ רווח/הפסד:</span>
                         <span className={`summary-value ${summary.totalProfitUSD >= 0 ? 'profit-positive' : 'profit-negative'}`}>
                           {formatPriceWithSign(summary.totalProfitUSD)} $
                         </span>
                       </div>
+                      <div className="summary-item">
+                        <span className="summary-label">אחוז רווח/הפסד כללי:</span>
+                        <span className={`summary-value ${summary.americanOnlyProfitPercent >= 0 ? 'profit-positive' : 'profit-negative'}`}>
+                          {summary.americanOnlyProfitPercent.toFixed(2)}%
+                        </span>
+                      </div>
+                      <div className="summary-item">
+                        <span className="summary-label">אחוז רווח/הפסד יומי:</span>
+                        <span className={`summary-value ${summary.americanOnlyDailyPercent >= 0 ? 'profit-positive' : 'profit-negative'}`}>
+                          {summary.americanOnlyDailyPercent.toFixed(2)}%
+                        </span>
+                      </div>
+                      <div className="summary-item">
+                        <span className="summary-label">רווח/הפסד יומי:</span>
+                        <span className={`summary-value ${summary.americanOnlyDailyProfitUSD >= 0 ? 'profit-positive' : 'profit-negative'}`}>
+                          {formatPriceWithSign(summary.americanOnlyDailyProfitUSD)} $
+                        </span>
+                      </div>
                     </div>
 
-                    {/* אינדיקטורים נוספים */}
+                    {/* סיכום כולל */}
                     <div className="summary-section">
-                      <h3 className="summary-section-title">אינדיקטורים</h3>
+                      <h3 className="summary-section-title">סיכום כולל (₪)</h3>
                       <div className="summary-item">
-                        <span className="summary-label">אחוז שינוי יומי:</span>
-                        <span className={`summary-value ${summary.weightedDailyChange >= 0 ? 'profit-positive' : 'profit-negative'}`}>
-                          {summary.weightedDailyChange.toFixed(2)}%
-                        </span>
+                        <span className="summary-label">סה"כ השקעה בש"ח:</span>
+                        <span className="summary-value">{formatPriceWithSign(summary.totalPurchaseILS)} ₪</span>
                       </div>
                       <div className="summary-item">
-                        <span className="summary-label">רווח יומי בש"ח:</span>
-                        <span className={`summary-value ${summary.dailyProfitILS >= 0 ? 'profit-positive' : 'profit-negative'}`}>
-                          {formatPriceWithSign(summary.dailyProfitILS)} ₪
-                        </span>
+                        <span className="summary-label">סה"כ שווי בש"ח:</span>
+                        <span className="summary-value">{formatPriceWithSign(summary.totalCurrentValueILS)} ₪</span>
                       </div>
                       <div className="summary-item">
-                        <span className="summary-label">רווח יומי בדולר:</span>
-                        <span className={`summary-value ${summary.dailyProfitUSD >= 0 ? 'profit-positive' : 'profit-negative'}`}>
-                          {formatPriceWithSign(summary.dailyProfitUSD)} $
+                        <span className="summary-label">סה"כ רווח /הפסד בש"ח:</span>
+                        <span className={`summary-value ${summary.totalProfitILS >= 0 ? 'profit-positive' : 'profit-negative'}`}>
+                          {formatPriceWithSign(summary.totalProfitILS)} ₪
                         </span>
                       </div>
                       <div className="summary-item">
@@ -1244,6 +1309,10 @@ function App() {
                         </span>
                       </div>
                     </div>
+
+                    {/* סיכום בדולרים - הוסר לפי בקשה */}
+
+                    {/* אינדיקטורים - הוסר לפי בקשה */}
                   </div>
                 );
               })()}
