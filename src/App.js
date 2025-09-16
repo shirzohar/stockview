@@ -8,8 +8,13 @@ function App() {
   const [isAddingNewStock, setIsAddingNewStock] = useState(false);
   const [israeliStocks, setIsraeliStocks] = useState([]);
   const [americanStocks, setAmericanStocks] = useState([]);
+  const [pensionFunds, setPensionFunds] = useState([]);
+  const [bankBalances, setBankBalances] = useState([]);
+  const [cashFunds, setCashFunds] = useState([]);
   const [formData, setFormData] = useState({
+    itemType: 'stock',
     stockName: '',
+    securityId: '',
     purchaseDate: '',
     purchasePrice: '',
     quantity: '',
@@ -26,6 +31,9 @@ function App() {
   useEffect(() => {
     const savedIsraeliStocks = localStorage.getItem('israeliStocks');
     const savedAmericanStocks = localStorage.getItem('americanStocks');
+    const savedPensionFunds = localStorage.getItem('pensionFunds');
+    const savedBankBalances = localStorage.getItem('bankBalances');
+    const savedCashFunds = localStorage.getItem('cashFunds');
     
     if (savedIsraeliStocks) {
       setIsraeliStocks(JSON.parse(savedIsraeliStocks));
@@ -33,6 +41,15 @@ function App() {
     
     if (savedAmericanStocks) {
       setAmericanStocks(JSON.parse(savedAmericanStocks));
+    }
+    if (savedPensionFunds) {
+      setPensionFunds(JSON.parse(savedPensionFunds));
+    }
+    if (savedBankBalances) {
+      setBankBalances(JSON.parse(savedBankBalances));
+    }
+    if (savedCashFunds) {
+      setCashFunds(JSON.parse(savedCashFunds));
     }
   }, []);
 
@@ -162,9 +179,12 @@ function App() {
   }, [israeliStocks.length, americanStocks.length, isEditMode, isAddingNewStock]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // שמירת נתונים ב-LocalStorage
-  const saveToLocalStorage = (israeliData, americanData) => {
+  const saveToLocalStorage = (israeliData, americanData, pensionData = pensionFunds, bankData = bankBalances, cashData = cashFunds) => {
     localStorage.setItem('israeliStocks', JSON.stringify(israeliData));
     localStorage.setItem('americanStocks', JSON.stringify(americanData));
+    localStorage.setItem('pensionFunds', JSON.stringify(pensionData));
+    localStorage.setItem('bankBalances', JSON.stringify(bankData));
+    localStorage.setItem('cashFunds', JSON.stringify(cashData));
   };
 
   // פונקציה לקבלת מחיר נוכחי ואחוז שינוי יומי מ-Yahoo Finance דרך proxy
@@ -264,30 +284,58 @@ function App() {
       // אם לא מתקבל מחיר, המחיר נשאר 0 (כפי שהוגדר בתחילת הפונקציה)
     }
     
-    // יצירת אובייקט עם הנתונים
-    const stockData = {
-      id: Date.now(), // מזהה ייחודי
-      stockName: formData.stockName,
-      purchaseDate: formData.purchaseDate,
-      purchasePrice: parseFloat(formData.purchasePrice),
-      quantity: parseInt(formData.quantity),
-      exchangeRate: formData.exchange === 'american' ? parseFloat(formData.exchangeRate) : null,
-      currentPrice: currentPrice,
-      dailyChangePercent: dailyChangePercent
-    };
-
-    // שמירה בטבלה המתאימה
-    console.log('💾 שומר מנייה חדשה:', stockData);
-    if (formData.exchange === 'israeli') {
-      const updatedIsraeliStocks = [...israeliStocks, stockData];
-      console.log('📊 מניות ישראליות לפני:', israeliStocks.length, 'אחרי:', updatedIsraeliStocks.length);
-      setIsraeliStocks(updatedIsraeliStocks);
-      saveToLocalStorage(updatedIsraeliStocks, americanStocks);
-    } else {
-      const updatedAmericanStocks = [...americanStocks, stockData];
-      console.log('📊 מניות אמריקאיות לפני:', americanStocks.length, 'אחרי:', updatedAmericanStocks.length);
-      setAmericanStocks(updatedAmericanStocks);
-      saveToLocalStorage(israeliStocks, updatedAmericanStocks);
+    // יצירת ושמירת אובייקט לפי סוג פריט
+    if (formData.itemType === 'stock') {
+      const stockData = {
+        id: Date.now(),
+        stockName: formData.stockName,
+        purchaseDate: formData.purchaseDate,
+        purchasePrice: parseFloat(formData.purchasePrice),
+        quantity: parseInt(formData.quantity),
+        exchangeRate: formData.exchange === 'american' ? parseFloat(formData.exchangeRate) : null,
+        currentPrice: currentPrice,
+        dailyChangePercent: dailyChangePercent
+      };
+      console.log('💾 שומר מנייה/כספית חדשה:', stockData);
+      if (formData.exchange === 'israeli') {
+        const updatedIsraeliStocks = [...israeliStocks, stockData];
+        setIsraeliStocks(updatedIsraeliStocks);
+        saveToLocalStorage(updatedIsraeliStocks, americanStocks);
+      } else {
+        const updatedAmericanStocks = [...americanStocks, stockData];
+        setAmericanStocks(updatedAmericanStocks);
+        saveToLocalStorage(israeliStocks, updatedAmericanStocks);
+      }
+    } else if (formData.itemType === 'cash_fund') {
+      const cashItem = {
+        id: Date.now(),
+        fundName: formData.stockName,
+        securityId: formData.securityId,
+        updateDate: formData.purchaseDate,
+        amount: parseFloat(formData.purchasePrice)
+      };
+      const updatedCashFunds = [...cashFunds, cashItem];
+      setCashFunds(updatedCashFunds);
+      saveToLocalStorage(israeliStocks, americanStocks, pensionFunds, bankBalances, updatedCashFunds);
+    } else if (formData.itemType === 'pension') {
+      const pensionItem = {
+        id: Date.now(),
+        fundName: formData.stockName,
+        updateDate: formData.purchaseDate,
+        amount: parseFloat(formData.purchasePrice)
+      };
+      const updatedPensionFunds = [...pensionFunds, pensionItem];
+      setPensionFunds(updatedPensionFunds);
+      saveToLocalStorage(israeliStocks, americanStocks, updatedPensionFunds, bankBalances);
+    } else if (formData.itemType === 'bank') {
+      const bankItem = {
+        id: Date.now(),
+        updateDate: formData.purchaseDate,
+        amount: parseFloat(formData.purchasePrice)
+      };
+      const updatedBankBalances = [...bankBalances, bankItem];
+      setBankBalances(updatedBankBalances);
+      saveToLocalStorage(israeliStocks, americanStocks, pensionFunds, updatedBankBalances);
     }
 
     setShowForm(false);
@@ -295,7 +343,9 @@ function App() {
     
     // איפוס הטופס
     setFormData({
+      itemType: 'stock',
       stockName: '',
+      securityId: '',
       purchaseDate: '',
       purchasePrice: '',
       quantity: '',
@@ -314,10 +364,22 @@ function App() {
       const updatedIsraeliStocks = israeliStocks.filter(stock => stock.id !== id);
       setIsraeliStocks(updatedIsraeliStocks);
       saveToLocalStorage(updatedIsraeliStocks, americanStocks);
-    } else {
+    } else if (exchange === 'american') {
       const updatedAmericanStocks = americanStocks.filter(stock => stock.id !== id);
       setAmericanStocks(updatedAmericanStocks);
       saveToLocalStorage(israeliStocks, updatedAmericanStocks);
+    } else if (exchange === 'pension') {
+      const updatedPensionFunds = pensionFunds.filter(item => item.id !== id);
+      setPensionFunds(updatedPensionFunds);
+      saveToLocalStorage(israeliStocks, americanStocks, updatedPensionFunds, bankBalances);
+    } else if (exchange === 'bank') {
+      const updatedBankBalances = bankBalances.filter(item => item.id !== id);
+      setBankBalances(updatedBankBalances);
+      saveToLocalStorage(israeliStocks, americanStocks, pensionFunds, updatedBankBalances);
+    } else if (exchange === 'cash_fund') {
+      const updatedCashFunds = cashFunds.filter(item => item.id !== id);
+      setCashFunds(updatedCashFunds);
+      saveToLocalStorage(israeliStocks, americanStocks, pensionFunds, bankBalances, updatedCashFunds);
     }
   };
 
@@ -376,6 +438,7 @@ function App() {
     setEditingStock(null);
     setFormData({
       stockName: '',
+      securityId: '',
       purchasePrice: '',
       quantity: '',
       purchaseDate: '',
@@ -390,6 +453,7 @@ function App() {
     setEditingStock(null);
     setFormData({
       stockName: '',
+      securityId: '',
       purchasePrice: '',
       quantity: '',
       purchaseDate: '',
@@ -408,12 +472,30 @@ function App() {
       );
       setIsraeliStocks(updatedIsraeliStocks);
       saveToLocalStorage(updatedIsraeliStocks, americanStocks);
-    } else {
+    } else if (exchange === 'american') {
       const updatedAmericanStocks = americanStocks.map(stock => 
         stock.id === id ? { ...stock, [field]: value } : stock
       );
       setAmericanStocks(updatedAmericanStocks);
       saveToLocalStorage(israeliStocks, updatedAmericanStocks);
+    } else if (exchange === 'pension') {
+      const updatedPensionFunds = pensionFunds.map(item => 
+        item.id === id ? { ...item, [field]: value } : item
+      );
+      setPensionFunds(updatedPensionFunds);
+      saveToLocalStorage(israeliStocks, americanStocks, updatedPensionFunds, bankBalances);
+    } else if (exchange === 'bank') {
+      const updatedBankBalances = bankBalances.map(item => 
+        item.id === id ? { ...item, [field]: value } : item
+      );
+      setBankBalances(updatedBankBalances);
+      saveToLocalStorage(israeliStocks, americanStocks, pensionFunds, updatedBankBalances);
+    } else if (exchange === 'cash_fund') {
+      const updatedCashFunds = cashFunds.map(item => 
+        item.id === id ? { ...item, [field]: value } : item
+      );
+      setCashFunds(updatedCashFunds);
+      saveToLocalStorage(israeliStocks, americanStocks, pensionFunds, bankBalances, updatedCashFunds);
     }
   };
 
@@ -609,6 +691,14 @@ function App() {
     const americanProfitPercent = americanSummary.totalPurchaseUSD > 0 ? (americanProfitUSD / americanSummary.totalPurchaseUSD) * 100 : 0;
     const americanDailyPercent = americanSummary.totalCurrentValueUSD > 0 ? (americanDailyProfitUSD / americanSummary.totalCurrentValueUSD) * 100 : 0;
 
+    // סה"כ מצב ההון לפי קטגוריות
+    const cashFundsTotalILS = cashFunds.reduce((sum, item) => sum + (item.amount || 0), 0);
+    const pensionFundsTotalILS = pensionFunds.reduce((sum, item) => sum + (item.amount || 0), 0);
+    const bankBalancesTotalILS = bankBalances.reduce((sum, item) => sum + (item.amount || 0), 0);
+    const capitalIsraeliILS = israeliSummary.totalCurrentValueILS;
+    const capitalAmericanILS = americanSummary.totalCurrentValueILS;
+    const capitalTotalILS = capitalIsraeliILS + capitalAmericanILS + cashFundsTotalILS + pensionFundsTotalILS + bankBalancesTotalILS;
+
     return {
       // סיכום בשקלים
       totalPurchaseILS: israeliSummary.totalPurchaseILS + americanSummary.totalPurchaseILS,
@@ -641,7 +731,15 @@ function App() {
       americanDailyProfitUSD: americanDailyProfitUSD,
       
       // השפעת שער חליפין כוללת
-      totalExchangeImpact: americanSummary.totalExchangeImpact
+      totalExchangeImpact: americanSummary.totalExchangeImpact,
+
+      // מצב הון
+      capitalIsraeliILS,
+      capitalAmericanILS,
+      capitalCashFundsILS: cashFundsTotalILS,
+      capitalPensionILS: pensionFundsTotalILS,
+      capitalBankILS: bankBalancesTotalILS,
+      capitalTotalILS
     };
   };
 
@@ -854,83 +952,183 @@ function App() {
             <h1 className="form-title">{isEditMode ? 'עריכת מנייה' : 'הוספת מידע על מנייה'}</h1>
             
             <form onSubmit={handleSubmit} className="stock-form">
+              {/* סוג פריט להוספה */}
               <div className="form-group">
-                <label htmlFor="stockName">
-                  {formData.exchange === 'israeli' ? 'ID מנייה מ-TASE *' : 'שם מנייה *'}
-                </label>
-                <input
-                  type="text"
-                  id="stockName"
-                  name="stockName"
-                  value={formData.stockName}
-                  onChange={handleInputChange}
-                  required
-                  placeholder={formData.exchange === 'israeli' ? 'לדוגמה: 1159243 (ID של המנייה מ-TASE)' : 'לדוגמה: AAPL, MSFT, TSLA'}
-                />
-                {formData.exchange === 'israeli' && (
-                  <small className="form-help">
-                    עבור מניות ישראליות, הזן את ה-ID של המנייה מ-TASE (מספר כמו 1159243)
-                  </small>
-                )}
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="purchaseDate">תאריך קנייה *</label>
-                <input
-                  type="date"
-                  id="purchaseDate"
-                  name="purchaseDate"
-                  value={formData.purchaseDate}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="purchasePrice">מחיר קנייה *</label>
-                <input
-                  type="number"
-                  id="purchasePrice"
-                  name="purchasePrice"
-                  value={formData.purchasePrice}
-                  onChange={handleInputChange}
-                  required
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="quantity">כמות *</label>
-                <input
-                  type="number"
-                  id="quantity"
-                  name="quantity"
-                  value={formData.quantity}
-                  onChange={handleInputChange}
-                  required
-                  min="1"
-                  placeholder="1"
-                />
-              </div>
-
-
-              <div className="form-group">
-                <label htmlFor="exchange">בורסה *</label>
+                <label htmlFor="itemType">מה להוסיף</label>
                 <select
-                  id="exchange"
-                  name="exchange"
-                  value={formData.exchange}
+                  id="itemType"
+                  name="itemType"
+                  value={formData.itemType}
                   onChange={handleInputChange}
-                  required
                 >
-                  <option value="israeli">בורסה ישראלית</option>
-                  <option value="american">בורסה אמריקאית</option>
+                  <option value="stock">מנייה</option>
+                  <option value="pension">קופת גמל</option>
+                  <option value="bank">עו"ש</option>
+                  <option value="cash_fund">כספית שקלית</option>
                 </select>
               </div>
+              {formData.itemType === 'stock' && (
+                <div className="form-group">
+                  <label htmlFor="stockName">
+                    {formData.exchange === 'israeli' ? 'ID מנייה מ-TASE *' : 'שם מנייה *'}
+                  </label>
+                  <input
+                    type="text"
+                    id="stockName"
+                    name="stockName"
+                    value={formData.stockName}
+                    onChange={handleInputChange}
+                    required
+                    placeholder={formData.exchange === 'israeli' ? 'לדוגמה: 1159243 (ID של המנייה מ-TASE)' : 'לדוגמה: AAPL, MSFT, TSLA'}
+                  />
+                  {formData.exchange === 'israeli' && (
+                    <small className="form-help">
+                      עבור מניות ישראליות, הזן את ה-ID של המנייה מ-TASE (מספר כמו 1159243)
+                    </small>
+                  )}
+                </div>
+              )}
 
-              {formData.exchange === 'american' && (
+              {formData.itemType === 'pension' && (
+                <div className="form-group">
+                  <label htmlFor="stockName">שם קופה *</label>
+                  <input
+                    type="text"
+                    id="stockName"
+                    name="stockName"
+                    value={formData.stockName}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="לדוגמה: קופת גמל להשקעה X"
+                  />
+                </div>
+              )}
+
+              {formData.itemType === 'cash_fund' && (
+                <div className="form-group">
+                  <label htmlFor="securityId">מספר נייר ערך *</label>
+                  <input
+                    type="text"
+                    id="securityId"
+                    name="securityId"
+                    value={formData.securityId}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="לדוגמה: 5119609"
+                  />
+                </div>
+              )}
+
+              {(formData.itemType === 'stock' || formData.itemType === 'pension' || formData.itemType === 'bank' || formData.itemType === 'cash_fund') && (
+                <div className="form-group">
+                  <label htmlFor="purchaseDate">{formData.itemType === 'stock' ? 'תאריך קנייה *' : 'תאריך עדכון *'}</label>
+                  <input
+                    type="date"
+                    id="purchaseDate"
+                    name="purchaseDate"
+                    value={formData.purchaseDate}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+              )}
+
+              {formData.itemType === 'stock' ? (
+                <div className="form-group">
+                  <label htmlFor="purchasePrice">מחיר קנייה *</label>
+                  <input
+                    type="number"
+                    id="purchasePrice"
+                    name="purchasePrice"
+                    value={formData.purchasePrice}
+                    onChange={handleInputChange}
+                    required
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                  />
+                </div>
+              ) : formData.itemType === 'pension' ? (
+                <div className="form-group">
+                  <label htmlFor="purchasePrice">סכום בקופה *</label>
+                  <input
+                    type="number"
+                    id="purchasePrice"
+                    name="purchasePrice"
+                    value={formData.purchasePrice}
+                    onChange={handleInputChange}
+                    required
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                  />
+                </div>
+              ) : formData.itemType === 'bank' ? (
+                <div className="form-group">
+                  <label htmlFor="purchasePrice">סכום בעו"ש *</label>
+                  <input
+                    type="number"
+                    id="purchasePrice"
+                    name="purchasePrice"
+                    value={formData.purchasePrice}
+                    onChange={handleInputChange}
+                    required
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                  />
+                </div>
+              ) : formData.itemType === 'cash_fund' ? (
+                <div className="form-group">
+                  <label htmlFor="purchasePrice">סכום *</label>
+                  <input
+                    type="number"
+                    id="purchasePrice"
+                    name="purchasePrice"
+                    value={formData.purchasePrice}
+                    onChange={handleInputChange}
+                    required
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                  />
+                </div>
+              ) : null}
+
+              {formData.itemType === 'stock' && (
+                <div className="form-group">
+                  <label htmlFor="quantity">כמות *</label>
+                  <input
+                    type="number"
+                    id="quantity"
+                    name="quantity"
+                    value={formData.quantity}
+                    onChange={handleInputChange}
+                    required
+                    min="1"
+                    placeholder="1"
+                  />
+                </div>
+              )}
+
+
+              {formData.itemType === 'stock' && (
+                <div className="form-group">
+                  <label htmlFor="exchange">בורסה *</label>
+                  <select
+                    id="exchange"
+                    name="exchange"
+                    value={formData.exchange}
+                    onChange={handleInputChange}
+                    required
+                  >
+                    <option value="israeli">בורסה ישראלית</option>
+                    <option value="american">בורסה אמריקאית</option>
+                  </select>
+                </div>
+              )}
+
+              {formData.itemType === 'stock' && formData.exchange === 'american' && (
                 <div className="form-group">
                   <label htmlFor="exchangeRate">שער חליפין ביום הקנייה *</label>
                   <input
@@ -1210,109 +1408,140 @@ function App() {
               {(() => {
                 const summary = calculatePortfolioSummary();
                 return (
-                  <div className="summary-grid">
-                    {/* בורסה ישראל */}
-                    <div className="summary-section">
-                      <h3 className="summary-section-title">בורסה ישראל (₪)</h3>
-                      <div className="summary-item">
-                        <span className="summary-label">סה"כ השקעה:</span>
-                        <span className="summary-value">{formatPriceWithSign(summary.israeliOnlyPurchaseILS)} ₪</span>
+                  <div className="summary-grid" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {/* שורה עליונה: בורסה ישראל + בורסה אמריקאית */}
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'stretch' }}>
+                      {/* בורסה ישראל */}
+                      <div className="summary-section" style={{ flex: 1 }}>
+                        <h3 className="summary-section-title">בורסה ישראל (₪)</h3>
+                        <div className="summary-item">
+                          <span className="summary-label">סה"כ השקעה:</span>
+                          <span className="summary-value">{formatPriceWithSign(summary.israeliOnlyPurchaseILS)} ₪</span>
+                        </div>
+                        <div className="summary-item">
+                          <span className="summary-label">סה"כ שווי:</span>
+                          <span className="summary-value">{formatPriceWithSign(summary.israeliOnlyCurrentValueILS)} ₪</span>
+                        </div>
+                        <div className="summary-item">
+                          <span className="summary-label">סה"כ רווח/הפסד:</span>
+                          <span className={`summary-value ${summary.israeliOnlyProfitILS >= 0 ? 'profit-positive' : 'profit-negative'}`}>
+                            {formatPriceWithSign(summary.israeliOnlyProfitILS)} ₪
+                          </span>
+                        </div>
+                        <div className="summary-item">
+                          <span className="summary-label">אחוז רווח/הפסד כללי:</span>
+                          <span className={`summary-value ${summary.israeliOnlyProfitPercent >= 0 ? 'profit-positive' : 'profit-negative'}`}>
+                            {summary.israeliOnlyProfitPercent.toFixed(2)}%
+                          </span>
+                        </div>
+                        <div className="summary-item">
+                          <span className="summary-label">אחוז רווח/הפסד יומי:</span>
+                          <span className={`summary-value ${summary.israeliOnlyDailyPercent >= 0 ? 'profit-positive' : 'profit-negative'}`}>
+                            {summary.israeliOnlyDailyPercent.toFixed(2)}%
+                          </span>
+                        </div>
+                        <div className="summary-item">
+                          <span className="summary-label">רווח/הפסד יומי:</span>
+                          <span className={`summary-value ${summary.israeliOnlyDailyProfitILS >= 0 ? 'profit-positive' : 'profit-negative'}`}>
+                            {formatPriceWithSign(summary.israeliOnlyDailyProfitILS)} ₪
+                          </span>
+                        </div>
                       </div>
-                      <div className="summary-item">
-                        <span className="summary-label">סה"כ שווי:</span>
-                        <span className="summary-value">{formatPriceWithSign(summary.israeliOnlyCurrentValueILS)} ₪</span>
-                      </div>
-                      <div className="summary-item">
-                        <span className="summary-label">סה"כ רווח/הפסד:</span>
-                        <span className={`summary-value ${summary.israeliOnlyProfitILS >= 0 ? 'profit-positive' : 'profit-negative'}`}>
-                          {formatPriceWithSign(summary.israeliOnlyProfitILS)} ₪
-                        </span>
-                      </div>
-                      <div className="summary-item">
-                        <span className="summary-label">אחוז רווח/הפסד כללי:</span>
-                        <span className={`summary-value ${summary.israeliOnlyProfitPercent >= 0 ? 'profit-positive' : 'profit-negative'}`}>
-                          {summary.israeliOnlyProfitPercent.toFixed(2)}%
-                        </span>
-                      </div>
-                      <div className="summary-item">
-                        <span className="summary-label">אחוז רווח/הפסד יומי:</span>
-                        <span className={`summary-value ${summary.israeliOnlyDailyPercent >= 0 ? 'profit-positive' : 'profit-negative'}`}>
-                          {summary.israeliOnlyDailyPercent.toFixed(2)}%
-                        </span>
-                      </div>
-                      <div className="summary-item">
-                        <span className="summary-label">רווח/הפסד יומי:</span>
-                        <span className={`summary-value ${summary.israeliOnlyDailyProfitILS >= 0 ? 'profit-positive' : 'profit-negative'}`}>
-                          {formatPriceWithSign(summary.israeliOnlyDailyProfitILS)} ₪
-                        </span>
+
+                      {/* בורסה אמריקאית */}
+                      <div className="summary-section" style={{ flex: 1 }}>
+                        <h3 className="summary-section-title">בורסה אמריקאית ($)</h3>
+                        <div className="summary-item">
+                          <span className="summary-label">סה"כ השקעה:</span>
+                          <span className="summary-value">{formatPriceWithSign(summary.totalPurchaseUSD)} $</span>
+                        </div>
+                        <div className="summary-item">
+                          <span className="summary-label">סה"כ שווי:</span>
+                          <span className="summary-value">{formatPriceWithSign(summary.totalCurrentValueUSD)} $</span>
+                        </div>
+                        <div className="summary-item">
+                          <span className="summary-label">סה"כ רווח/הפסד:</span>
+                          <span className={`summary-value ${summary.totalProfitUSD >= 0 ? 'profit-positive' : 'profit-negative'}`}>
+                            {formatPriceWithSign(summary.totalProfitUSD)} $
+                          </span>
+                        </div>
+                        <div className="summary-item">
+                          <span className="summary-label">אחוז רווח/הפסד כללי:</span>
+                          <span className={`summary-value ${summary.americanOnlyProfitPercent >= 0 ? 'profit-positive' : 'profit-negative'}`}>
+                            {summary.americanOnlyProfitPercent.toFixed(2)}%
+                          </span>
+                        </div>
+                        <div className="summary-item">
+                          <span className="summary-label">אחוז רווח/הפסד יומי:</span>
+                          <span className={`summary-value ${summary.americanOnlyDailyPercent >= 0 ? 'profit-positive' : 'profit-negative'}`}>
+                            {summary.americanOnlyDailyPercent.toFixed(2)}%
+                          </span>
+                        </div>
+                        <div className="summary-item">
+                          <span className="summary-label">רווח/הפסד יומי:</span>
+                          <span className={`summary-value ${summary.americanOnlyDailyProfitUSD >= 0 ? 'profit-positive' : 'profit-negative'}`}>
+                            {formatPriceWithSign(summary.americanOnlyDailyProfitUSD)} $
+                          </span>
+                        </div>
                       </div>
                     </div>
 
-                    {/* בורסה אמריקאית */}
-                    <div className="summary-section">
-                      <h3 className="summary-section-title">בורסה אמריקאית ($)</h3>
-                      <div className="summary-item">
-                        <span className="summary-label">סה"כ השקעה:</span>
-                        <span className="summary-value">{formatPriceWithSign(summary.totalPurchaseUSD)} $</span>
+                    {/* שורה תחתונה: סה"כ מצב ההון + סיכום כולל */}
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'stretch' }}>
+                      {/* סה"כ מצב ההון */}
+                      <div className="summary-section" style={{ flex: 1 }}>
+                        <h3 className="summary-section-title">סה"כ מצב ההון</h3>
+                        <div className="summary-item">
+                          <span className="summary-label">בורסה ישראלית:</span>
+                          <span className="summary-value">{formatPriceWithSign(summary.capitalIsraeliILS)} ₪</span>
+                        </div>
+                        <div className="summary-item">
+                          <span className="summary-label">בורסה אמריקאית:</span>
+                          <span className="summary-value">{formatPriceWithSign(summary.capitalAmericanILS)} ₪</span>
+                        </div>
+                        <div className="summary-item">
+                          <span className="summary-label">כספית שקלית:</span>
+                          <span className="summary-value">{formatPriceWithSign(summary.capitalCashFundsILS)} ₪</span>
+                        </div>
+                        <div className="summary-item">
+                          <span className="summary-label">קופת גמל:</span>
+                          <span className="summary-value">{formatPriceWithSign(summary.capitalPensionILS)} ₪</span>
+                        </div>
+                        <div className="summary-item">
+                          <span className="summary-label">עו"ש:</span>
+                          <span className="summary-value">{formatPriceWithSign(summary.capitalBankILS)} ₪</span>
+                        </div>
+                        <div className="summary-item">
+                          <span className="summary-label">סה"כ מצב ההון:</span>
+                          <span className="summary-value">{formatPriceWithSign(summary.capitalTotalILS)} ₪</span>
+                        </div>
                       </div>
-                      <div className="summary-item">
-                        <span className="summary-label">סה"כ שווי:</span>
-                        <span className="summary-value">{formatPriceWithSign(summary.totalCurrentValueUSD)} $</span>
-                      </div>
-                      <div className="summary-item">
-                        <span className="summary-label">סה"כ רווח/הפסד:</span>
-                        <span className={`summary-value ${summary.totalProfitUSD >= 0 ? 'profit-positive' : 'profit-negative'}`}>
-                          {formatPriceWithSign(summary.totalProfitUSD)} $
-                        </span>
-                      </div>
-                      <div className="summary-item">
-                        <span className="summary-label">אחוז רווח/הפסד כללי:</span>
-                        <span className={`summary-value ${summary.americanOnlyProfitPercent >= 0 ? 'profit-positive' : 'profit-negative'}`}>
-                          {summary.americanOnlyProfitPercent.toFixed(2)}%
-                        </span>
-                      </div>
-                      <div className="summary-item">
-                        <span className="summary-label">אחוז רווח/הפסד יומי:</span>
-                        <span className={`summary-value ${summary.americanOnlyDailyPercent >= 0 ? 'profit-positive' : 'profit-negative'}`}>
-                          {summary.americanOnlyDailyPercent.toFixed(2)}%
-                        </span>
-                      </div>
-                      <div className="summary-item">
-                        <span className="summary-label">רווח/הפסד יומי:</span>
-                        <span className={`summary-value ${summary.americanOnlyDailyProfitUSD >= 0 ? 'profit-positive' : 'profit-negative'}`}>
-                          {formatPriceWithSign(summary.americanOnlyDailyProfitUSD)} $
-                        </span>
+
+                      {/* סיכום כולל */}
+                      <div className="summary-section" style={{ flex: 1 }}>
+                        <h3 className="summary-section-title">סיכום כולל (₪)</h3>
+                        <div className="summary-item">
+                          <span className="summary-label">סה"כ השקעה בש"ח:</span>
+                          <span className="summary-value">{formatPriceWithSign(summary.totalPurchaseILS)} ₪</span>
+                        </div>
+                        <div className="summary-item">
+                          <span className="summary-label">סה"כ שווי בש"ח:</span>
+                          <span className="summary-value">{formatPriceWithSign(summary.totalCurrentValueILS)} ₪</span>
+                        </div>
+                        <div className="summary-item">
+                          <span className="summary-label">סה"כ רווח /הפסד בש"ח:</span>
+                          <span className={`summary-value ${summary.totalProfitILS >= 0 ? 'profit-positive' : 'profit-negative'}`}>
+                            {formatPriceWithSign(summary.totalProfitILS)} ₪
+                          </span>
+                        </div>
+                        <div className="summary-item">
+                          <span className="summary-label">השפעת שער חליפין:</span>
+                          <span className={`summary-value ${summary.totalExchangeImpact >= 0 ? 'profit-positive' : 'profit-negative'}`}>
+                            {formatPriceWithSign(summary.totalExchangeImpact)} ₪
+                          </span>
+                        </div>
                       </div>
                     </div>
-
-                    {/* סיכום כולל */}
-                    <div className="summary-section">
-                      <h3 className="summary-section-title">סיכום כולל (₪)</h3>
-                      <div className="summary-item">
-                        <span className="summary-label">סה"כ השקעה בש"ח:</span>
-                        <span className="summary-value">{formatPriceWithSign(summary.totalPurchaseILS)} ₪</span>
-                      </div>
-                      <div className="summary-item">
-                        <span className="summary-label">סה"כ שווי בש"ח:</span>
-                        <span className="summary-value">{formatPriceWithSign(summary.totalCurrentValueILS)} ₪</span>
-                      </div>
-                      <div className="summary-item">
-                        <span className="summary-label">סה"כ רווח /הפסד בש"ח:</span>
-                        <span className={`summary-value ${summary.totalProfitILS >= 0 ? 'profit-positive' : 'profit-negative'}`}>
-                          {formatPriceWithSign(summary.totalProfitILS)} ₪
-                        </span>
-                      </div>
-                      <div className="summary-item">
-                        <span className="summary-label">השפעת שער חליפין:</span>
-                        <span className={`summary-value ${summary.totalExchangeImpact >= 0 ? 'profit-positive' : 'profit-negative'}`}>
-                          {formatPriceWithSign(summary.totalExchangeImpact)} ₪
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* סיכום בדולרים - הוסר לפי בקשה */}
-
-                    {/* אינדיקטורים - הוסר לפי בקשה */}
                   </div>
                 );
               })()}
@@ -2095,6 +2324,269 @@ function App() {
                         </React.Fragment>
                       );
                     })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* טבלת קופות גמל */}
+          {pensionFunds.length > 0 && (
+            <div className="stocks-section">
+              <h2 className="section-title">קופות גמל</h2>
+              <div className="table-container">
+                <table className="stocks-table">
+                  <thead>
+                    <tr>
+                      <th>שם קופה</th>
+                      <th>תאריך עדכון</th>
+                      <th>סכום בקופה (₪)</th>
+                      {isEditMode && <th>פעולות</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pensionFunds.map(item => (
+                      <tr key={item.id} className={isEditMode ? 'editable-row' : ''}>
+                        <td
+                          onClick={() => handleCellClick(item.id, 'fundName', 'pension')}
+                          className={isEditMode ? 'editable-cell' : ''}
+                        >
+                          {editingField === `${item.id}-fundName` ? (
+                            <input
+                              type="text"
+                              value={item.fundName}
+                              onChange={(e) => handleInlineEdit(item.id, 'fundName', e.target.value, 'pension')}
+                              onBlur={finishInlineEdit}
+                              onKeyPress={(e) => handleKeyPress(e, item.id, 'fundName', 'pension')}
+                              autoFocus
+                            />
+                          ) : (
+                            item.fundName
+                          )}
+                        </td>
+                        <td
+                          onClick={() => handleCellClick(item.id, 'updateDate', 'pension')}
+                          className={isEditMode ? 'editable-cell' : ''}
+                        >
+                          {editingField === `${item.id}-updateDate` ? (
+                            <input
+                              type="date"
+                              value={item.updateDate}
+                              onChange={(e) => handleInlineEdit(item.id, 'updateDate', e.target.value, 'pension')}
+                              onBlur={finishInlineEdit}
+                              onKeyPress={(e) => handleKeyPress(e, item.id, 'updateDate', 'pension')}
+                              autoFocus
+                            />
+                          ) : (
+                            formatDate(item.updateDate)
+                          )}
+                        </td>
+                        <td
+                          onClick={() => handleCellClick(item.id, 'amount', 'pension')}
+                          className={isEditMode ? 'editable-cell' : ''}
+                        >
+                          {editingField === `${item.id}-amount` ? (
+                            <input
+                              type="number"
+                              value={item.amount}
+                              onChange={(e) => handleInlineEdit(item.id, 'amount', parseFloat(e.target.value), 'pension')}
+                              onBlur={finishInlineEdit}
+                              onKeyPress={(e) => handleKeyPress(e, item.id, 'amount', 'pension')}
+                              autoFocus
+                              step="0.01"
+                              min="0"
+                            />
+                          ) : (
+                            `${formatPriceWithSign(item.amount)} ₪`
+                          )}
+                        </td>
+                        {isEditMode && (
+                          <td>
+                            <button 
+                              onClick={() => handleDelete(item.id, 'pension')}
+                              className="delete-button"
+                            >
+                              מחק
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* טבלת כספית שקלית */}
+          {cashFunds.length > 0 && (
+            <div className="stocks-section">
+              <h2 className="section-title">כספית שקלית</h2>
+              <div className="table-container">
+                <table className="stocks-table">
+                  <thead>
+                    <tr>
+                      <th>שם</th>
+                      <th>מספר נייר ערך</th>
+                      <th>תאריך עדכון</th>
+                      <th>סכום (₪)</th>
+                      {isEditMode && <th>פעולות</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cashFunds.map(item => (
+                      <tr key={item.id} className={isEditMode ? 'editable-row' : ''}>
+                        <td
+                          onClick={() => handleCellClick(item.id, 'fundName', 'cash_fund')}
+                          className={isEditMode ? 'editable-cell' : ''}
+                        >
+                          {editingField === `${item.id}-fundName` ? (
+                            <input
+                              type="text"
+                              value={item.fundName}
+                              onChange={(e) => handleInlineEdit(item.id, 'fundName', e.target.value, 'cash_fund')}
+                              onBlur={finishInlineEdit}
+                              onKeyPress={(e) => handleKeyPress(e, item.id, 'fundName', 'cash_fund')}
+                              autoFocus
+                            />
+                          ) : (
+                            item.fundName
+                          )}
+                        </td>
+                        <td
+                          onClick={() => handleCellClick(item.id, 'securityId', 'cash_fund')}
+                          className={isEditMode ? 'editable-cell' : ''}
+                        >
+                          {editingField === `${item.id}-securityId` ? (
+                            <input
+                              type="text"
+                              value={item.securityId}
+                              onChange={(e) => handleInlineEdit(item.id, 'securityId', e.target.value, 'cash_fund')}
+                              onBlur={finishInlineEdit}
+                              onKeyPress={(e) => handleKeyPress(e, item.id, 'securityId', 'cash_fund')}
+                              autoFocus
+                            />
+                          ) : (
+                            item.securityId
+                          )}
+                        </td>
+                        <td
+                          onClick={() => handleCellClick(item.id, 'updateDate', 'cash_fund')}
+                          className={isEditMode ? 'editable-cell' : ''}
+                        >
+                          {editingField === `${item.id}-updateDate` ? (
+                            <input
+                              type="date"
+                              value={item.updateDate}
+                              onChange={(e) => handleInlineEdit(item.id, 'updateDate', e.target.value, 'cash_fund')}
+                              onBlur={finishInlineEdit}
+                              onKeyPress={(e) => handleKeyPress(e, item.id, 'updateDate', 'cash_fund')}
+                              autoFocus
+                            />
+                          ) : (
+                            formatDate(item.updateDate)
+                          )}
+                        </td>
+                        <td
+                          onClick={() => handleCellClick(item.id, 'amount', 'cash_fund')}
+                          className={isEditMode ? 'editable-cell' : ''}
+                        >
+                          {editingField === `${item.id}-amount` ? (
+                            <input
+                              type="number"
+                              value={item.amount}
+                              onChange={(e) => handleInlineEdit(item.id, 'amount', parseFloat(e.target.value), 'cash_fund')}
+                              onBlur={finishInlineEdit}
+                              onKeyPress={(e) => handleKeyPress(e, item.id, 'amount', 'cash_fund')}
+                              autoFocus
+                              step="0.01"
+                              min="0"
+                            />
+                          ) : (
+                            `${formatPriceWithSign(item.amount)} ₪`
+                          )}
+                        </td>
+                        {isEditMode && (
+                          <td>
+                            <button 
+                              onClick={() => handleDelete(item.id, 'cash_fund')}
+                              className="delete-button"
+                            >
+                              מחק
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          {/* טבלת עו"ש */}
+          {bankBalances.length > 0 && (
+            <div className="stocks-section">
+              <h2 className="section-title">עו"ש</h2>
+              <div className="table-container">
+                <table className="stocks-table">
+                  <thead>
+                    <tr>
+                      <th>תאריך עדכון</th>
+                      <th>סכום (₪)</th>
+                      {isEditMode && <th>פעולות</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bankBalances.map(item => (
+                      <tr key={item.id} className={isEditMode ? 'editable-row' : ''}>
+                        <td
+                          onClick={() => handleCellClick(item.id, 'updateDate', 'bank')}
+                          className={isEditMode ? 'editable-cell' : ''}
+                        >
+                          {editingField === `${item.id}-updateDate` ? (
+                            <input
+                              type="date"
+                              value={item.updateDate}
+                              onChange={(e) => handleInlineEdit(item.id, 'updateDate', e.target.value, 'bank')}
+                              onBlur={finishInlineEdit}
+                              onKeyPress={(e) => handleKeyPress(e, item.id, 'updateDate', 'bank')}
+                              autoFocus
+                            />
+                          ) : (
+                            formatDate(item.updateDate)
+                          )}
+                        </td>
+                        <td
+                          onClick={() => handleCellClick(item.id, 'amount', 'bank')}
+                          className={isEditMode ? 'editable-cell' : ''}
+                        >
+                          {editingField === `${item.id}-amount` ? (
+                            <input
+                              type="number"
+                              value={item.amount}
+                              onChange={(e) => handleInlineEdit(item.id, 'amount', parseFloat(e.target.value), 'bank')}
+                              onBlur={finishInlineEdit}
+                              onKeyPress={(e) => handleKeyPress(e, item.id, 'amount', 'bank')}
+                              autoFocus
+                              step="0.01"
+                              min="0"
+                            />
+                          ) : (
+                            `${formatPriceWithSign(item.amount)} ₪`
+                          )}
+                        </td>
+                        {isEditMode && (
+                          <td>
+                            <button 
+                              onClick={() => handleDelete(item.id, 'bank')}
+                              className="delete-button"
+                            >
+                              מחק
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
