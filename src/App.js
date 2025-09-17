@@ -59,6 +59,7 @@ function App() {
       const response = await fetch(`http://localhost:5000/api/israeli-stock/${stockId}`);
       if (!response.ok) throw new Error('שגיאה בקריאת נתונים מהשרת');
       const json = await response.json();
+      console.log('[Client] Israeli price response', { stockId, currentPrice: json && json.currentPrice, changePercent: json && json.changePercent, typeOfChangePercent: json && typeof json.changePercent });
       return json;
     } catch (error) {
       return null;
@@ -96,6 +97,13 @@ function App() {
             
             // עדכן את כל השורות של המנייה הזו
             stocks.forEach(stock => {
+              console.log('[Client] Updating Israeli stock row', {
+                stockId: stock.id,
+                stockName: stock.stockName,
+                receivedChangePercent: priceData.changePercent,
+                typeOfReceived: typeof priceData.changePercent,
+                assignedDailyChangePercent: priceData.changePercent
+              });
               updatedIsraeliStocks.push({
                 ...stock,
                 currentPrice: normalizedPrice,
@@ -280,6 +288,7 @@ function App() {
         const normalizedPrice = priceData.currentPrice / 100; // המרה מאגורות לשקלים
         currentPrice = normalizedPrice;
         dailyChangePercent = priceData.changePercent || 0;
+        console.log('[Client] New Israeli stock fetched', { stockId, currentPrice, dailyChangePercent, typeOfDaily: typeof dailyChangePercent });
       }
       // אם לא מתקבל מחיר, המחיר נשאר 0 (כפי שהוגדר בתחילת הפונקציה)
     }
