@@ -59,7 +59,6 @@ function App() {
       const response = await fetch(`http://localhost:5000/api/israeli-stock/${stockId}`);
       if (!response.ok) throw new Error('שגיאה בקריאת נתונים מהשרת');
       const json = await response.json();
-      console.log('[Client] Israeli price response', { stockId, currentPrice: json && json.currentPrice, changePercent: json && json.changePercent, typeOfChangePercent: json && typeof json.changePercent });
       return json;
     } catch (error) {
       return null;
@@ -97,13 +96,6 @@ function App() {
             
             // עדכן את כל השורות של המנייה הזו
             stocks.forEach(stock => {
-              console.log('[Client] Updating Israeli stock row', {
-                stockId: stock.id,
-                stockName: stock.stockName,
-                receivedChangePercent: priceData.changePercent,
-                typeOfReceived: typeof priceData.changePercent,
-                assignedDailyChangePercent: priceData.changePercent
-              });
               updatedIsraeliStocks.push({
                 ...stock,
                 currentPrice: normalizedPrice,
@@ -288,7 +280,6 @@ function App() {
         const normalizedPrice = priceData.currentPrice / 100; // המרה מאגורות לשקלים
         currentPrice = normalizedPrice;
         dailyChangePercent = priceData.changePercent || 0;
-        console.log('[Client] New Israeli stock fetched', { stockId, currentPrice, dailyChangePercent, typeOfDaily: typeof dailyChangePercent });
       }
       // אם לא מתקבל מחיר, המחיר נשאר 0 (כפי שהוגדר בתחילת הפונקציה)
     }
@@ -693,10 +684,14 @@ function App() {
 
     // אחוזי רווח כוללים פר בורסה
     const israeliProfitILS = israeliSummary.totalCurrentValueILS - israeliSummary.totalPurchaseILS;
+    const israeliTaxILS = israeliProfitILS > 0 ? israeliProfitILS * 0.25 : 0;
+    const israeliAfterTaxILS = israeliProfitILS - israeliTaxILS;
     const israeliProfitPercent = israeliSummary.totalPurchaseILS > 0 ? (israeliProfitILS / israeliSummary.totalPurchaseILS) * 100 : 0;
     const israeliDailyPercent = israeliSummary.totalCurrentValueILS > 0 ? (israeliDailyProfitILS / israeliSummary.totalCurrentValueILS) * 100 : 0;
 
     const americanProfitUSD = americanSummary.totalCurrentValueUSD - americanSummary.totalPurchaseUSD;
+    const americanTaxUSD = americanProfitUSD > 0 ? americanProfitUSD * 0.25 : 0;
+    const americanAfterTaxUSD = americanProfitUSD - americanTaxUSD;
     const americanProfitPercent = americanSummary.totalPurchaseUSD > 0 ? (americanProfitUSD / americanSummary.totalPurchaseUSD) * 100 : 0;
     const americanDailyPercent = americanSummary.totalCurrentValueUSD > 0 ? (americanDailyProfitUSD / americanSummary.totalCurrentValueUSD) * 100 : 0;
 
@@ -718,6 +713,8 @@ function App() {
       israeliOnlyPurchaseILS: israeliSummary.totalPurchaseILS,
       israeliOnlyCurrentValueILS: israeliSummary.totalCurrentValueILS,
       israeliOnlyProfitILS: israeliSummary.totalProfitILS,
+      israeliOnlyTaxILS: israeliTaxILS,
+      israeliOnlyAfterTaxILS: israeliAfterTaxILS,
       israeliOnlyProfitPercent: israeliProfitPercent,
       israeliOnlyDailyPercent: israeliDailyPercent,
       israeliOnlyDailyProfitILS: israeliDailyProfitILS,
@@ -726,6 +723,8 @@ function App() {
       totalPurchaseUSD: americanSummary.totalPurchaseUSD,
       totalCurrentValueUSD: americanSummary.totalCurrentValueUSD,
       totalProfitUSD: americanSummary.totalProfitUSD,
+      americanOnlyTaxUSD: americanTaxUSD,
+      americanOnlyAfterTaxUSD: americanAfterTaxUSD,
       americanOnlyProfitPercent: americanProfitPercent,
       americanOnlyDailyPercent: americanDailyPercent,
       americanOnlyDailyProfitUSD: americanDailyProfitUSD,
@@ -1438,6 +1437,18 @@ function App() {
                           </span>
                         </div>
                         <div className="summary-item">
+                          <span className="summary-label">מס רווח הון (₪):</span>
+                          <span className={`summary-value profit-negative`}>
+                            {formatPriceWithSign(-summary.israeliOnlyTaxILS)} ₪
+                          </span>
+                        </div>
+                        <div className="summary-item">
+                          <span className="summary-label">רווח לאחר מס (₪):</span>
+                          <span className={`summary-value ${summary.israeliOnlyAfterTaxILS >= 0 ? 'profit-positive' : 'profit-negative'}`}>
+                            {formatPriceWithSign(summary.israeliOnlyAfterTaxILS)} ₪
+                          </span>
+                        </div>
+                        <div className="summary-item">
                           <span className="summary-label">אחוז רווח/הפסד כללי:</span>
                           <span className={`summary-value ${summary.israeliOnlyProfitPercent >= 0 ? 'profit-positive' : 'profit-negative'}`}>
                             {summary.israeliOnlyProfitPercent.toFixed(2)}%
@@ -1472,6 +1483,18 @@ function App() {
                           <span className="summary-label">סה"כ רווח/הפסד:</span>
                           <span className={`summary-value ${summary.totalProfitUSD >= 0 ? 'profit-positive' : 'profit-negative'}`}>
                             {formatPriceWithSign(summary.totalProfitUSD)} $
+                          </span>
+                        </div>
+                        <div className="summary-item">
+                          <span className="summary-label">מס רווח הון ($):</span>
+                          <span className={`summary-value profit-negative`}>
+                            {formatPriceWithSign(-summary.americanOnlyTaxUSD)} $
+                          </span>
+                        </div>
+                        <div className="summary-item">
+                          <span className="summary-label">רווח לאחר מס ($):</span>
+                          <span className={`summary-value ${summary.americanOnlyAfterTaxUSD >= 0 ? 'profit-positive' : 'profit-negative'}`}>
+                            {formatPriceWithSign(summary.americanOnlyAfterTaxUSD)} $
                           </span>
                         </div>
                         <div className="summary-item">
@@ -1609,6 +1632,8 @@ function App() {
                       <th>מחיר נוכחי (₪)</th>
                       <th>סה"כ שווי היום (₪)</th>
                       <th>סה"כ רווח/הפסד בש"ח</th>
+                      <th>מס רווח הון (₪)</th>
+                      <th>רווח לאחר מס (₪)</th>
                       <th>אחוז רווח/הפסד</th>
                       <th>אחוז שינוי יומי</th>
                       <th>רווח/הפסד יומי בש"ח</th>
@@ -1627,6 +1652,8 @@ function App() {
                         const totalCurrentValue = (stock.currentPrice || 0) * (stock.quantity || 0);
                         const profit = totalCurrentValue - totalPurchase;
                         const profitPercentage = calculateProfitPercentage(totalPurchase, totalCurrentValue);
+                        const capitalGainsTaxILS = profit > 0 ? profit * 0.25 : 0;
+                        const afterTaxProfitILS = profit - capitalGainsTaxILS;
                         
                         return (
                           <tr 
@@ -1709,6 +1736,12 @@ function App() {
                             <td className={profit >= 0 ? 'profit-positive' : 'profit-negative'}>
                               {formatPriceWithSign(profit)}
                             </td>
+                            <td className="profit-negative">
+                              {formatPriceWithSign(-capitalGainsTaxILS)}
+                            </td>
+                            <td className={afterTaxProfitILS >= 0 ? 'profit-positive' : 'profit-negative'}>
+                              {formatPriceWithSign(afterTaxProfitILS)}
+                            </td>
                             <td className={profit >= 0 ? 'profit-positive' : 'profit-negative'}>
                               {profitPercentage}%
                             </td>
@@ -1761,6 +1794,12 @@ function App() {
                             <td className={summary.totalProfit >= 0 ? 'profit-positive' : 'profit-negative'}>
                               {formatPriceWithSign(summary.totalProfit)}
                             </td>
+                            {(() => { const tax = summary.totalProfit > 0 ? summary.totalProfit * 0.25 : 0; const after = summary.totalProfit - tax; return (
+                              <>
+                                <td className="profit-negative">{formatPriceWithSign(-tax)}</td>
+                                <td className={after >= 0 ? 'profit-positive' : 'profit-negative'}>{formatPriceWithSign(after)}</td>
+                              </>
+                            ); })()}
                             <td className={summary.totalProfit >= 0 ? 'profit-positive' : 'profit-negative'}>
                               {summary.profitPercentage}%
                             </td>
@@ -1779,6 +1818,8 @@ function App() {
                             const totalCurrentValue = (stock.currentPrice || 0) * (stock.quantity || 0);
                             const profit = totalCurrentValue - totalPurchase;
                             const profitPercentage = calculateProfitPercentage(totalPurchase, totalCurrentValue);
+                            const capitalGainsTaxILS = profit > 0 ? profit * 0.25 : 0;
+                            const afterTaxProfitILS = profit - capitalGainsTaxILS;
                             
                             return (
                               <tr 
@@ -1863,6 +1904,12 @@ function App() {
                                 <td className={profit >= 0 ? 'profit-positive' : 'profit-negative'}>
                                   {formatPriceWithSign(profit)}
                                 </td>
+                                <td className="profit-negative">
+                                  {formatPriceWithSign(-capitalGainsTaxILS)}
+                                </td>
+                                <td className={afterTaxProfitILS >= 0 ? 'profit-positive' : 'profit-negative'}>
+                                  {formatPriceWithSign(afterTaxProfitILS)}
+                                </td>
                                 <td className={profit >= 0 ? 'profit-positive' : 'profit-negative'}>
                                   {profitPercentage}%
                                 </td>
@@ -1919,6 +1966,10 @@ function App() {
                       <th>אחוז שינוי יומי</th>
                       <th>רווח/הפסד יומי בדולר</th>
                       {showAmericanColumns && <th>השפעת שער חליפין</th>}
+                      {showAmericanColumns && <th>מס רווח הון ($)</th>}
+                      {showAmericanColumns && <th>מס רווח הון (₪)</th>}
+                      {showAmericanColumns && <th>רווח לאחר מס ($)</th>}
+                      {showAmericanColumns && <th>רווח לאחר מס (₪)</th>}
                       {isEditMode && <th>פעולות</th>}
                     </tr>
                   </thead>
@@ -1940,6 +1991,10 @@ function App() {
                         // חישוב השפעת שער החליפין - ההפרש בין הרווח בשער הקנייה לרווח בשער הנוכחי
                         const profitUSD = totalCurrentValueUSD - totalPurchaseUSD;
                         const profitILS = profitUSD * currentExchangeRate;
+                        const taxUSD = profitUSD > 0 ? profitUSD * 0.25 : 0;
+                        const taxILS = taxUSD * currentExchangeRate;
+                        const afterTaxUSD = profitUSD - taxUSD;
+                        const afterTaxILS = profitILS - taxILS;
                         const profitAtPurchaseRate = profitUSD * stock.exchangeRate;
                         const exchangeRateImpact = profitILS - profitAtPurchaseRate;
                         
@@ -2072,6 +2127,26 @@ function App() {
                                 {formatPriceWithSign(exchangeRateImpact)} ₪
                               </td>
                             )}
+                            {showAmericanColumns && (
+                              <td className="profit-negative">
+                                {formatPriceWithSign(-taxUSD)} $
+                              </td>
+                            )}
+                            {showAmericanColumns && (
+                              <td className="profit-negative">
+                                {formatPriceWithSign(-taxILS)} ₪
+                              </td>
+                            )}
+                            {showAmericanColumns && (
+                              <td className={afterTaxUSD >= 0 ? 'profit-positive' : 'profit-negative'}>
+                                {formatPriceWithSign(afterTaxUSD)} $
+                              </td>
+                            )}
+                            {showAmericanColumns && (
+                              <td className={afterTaxILS >= 0 ? 'profit-positive' : 'profit-negative'}>
+                                {formatPriceWithSign(afterTaxILS)} ₪
+                              </td>
+                            )}
                             {isEditMode && (
                               <td>
                                 <button 
@@ -2102,6 +2177,10 @@ function App() {
                       // חישוב רווח כולל עבור הקיבוץ
                       const totalProfitUSD = totalCurrentValueUSD - totalPurchaseUSD;
                       const totalProfitILS = totalProfitUSD * (stocks[0].currentExchangeRate || stocks[0].exchangeRate || 0);
+                      const totalTaxUSD = totalProfitUSD > 0 ? totalProfitUSD * 0.25 : 0;
+                      const totalTaxILS = totalTaxUSD * (stocks[0].currentExchangeRate || stocks[0].exchangeRate || 0);
+                      const totalAfterTaxUSD = totalProfitUSD - totalTaxUSD;
+                      const totalAfterTaxILS = totalProfitILS - totalTaxILS;
                       
                       // חישוב השפעת שער החליפין הכוללת עבור הקיבוץ
                       const totalExchangeRateImpact = stocks.reduce((sum, stock) => {
@@ -2168,6 +2247,26 @@ function App() {
                                 {formatPriceWithSign(totalExchangeRateImpact)} ₪
                               </td>
                             )}
+                            {showAmericanColumns && (
+                              <td className="profit-negative">
+                                {formatPriceWithSign(-totalTaxUSD)} $
+                              </td>
+                            )}
+                            {showAmericanColumns && (
+                              <td className="profit-negative">
+                                {formatPriceWithSign(-totalTaxILS)} ₪
+                              </td>
+                            )}
+                            {showAmericanColumns && (
+                              <td className={totalAfterTaxUSD >= 0 ? 'profit-positive' : 'profit-negative'}>
+                                {formatPriceWithSign(totalAfterTaxUSD)} $
+                              </td>
+                            )}
+                            {showAmericanColumns && (
+                              <td className={totalAfterTaxILS >= 0 ? 'profit-positive' : 'profit-negative'}>
+                                {formatPriceWithSign(totalAfterTaxILS)} ₪
+                              </td>
+                            )}
                             {isEditMode && <td></td>}
                           </tr>
                           
@@ -2183,6 +2282,10 @@ function App() {
                             // חישוב השפעת שער החליפין - ההפרש בין הרווח בשער הקנייה לרווח בשער הנוכחי
                             const profitUSD = totalCurrentValueUSD - totalPurchaseUSD;
                             const profitILS = profitUSD * currentExchangeRate;
+                            const taxUSD = profitUSD > 0 ? profitUSD * 0.25 : 0;
+                            const taxILS = taxUSD * currentExchangeRate;
+                            const afterTaxUSD = profitUSD - taxUSD;
+                            const afterTaxILS = profitILS - taxILS;
                             const profitAtPurchaseRate = profitUSD * stock.exchangeRate;
                             const exchangeRateImpact = profitILS - profitAtPurchaseRate;
                             
@@ -2315,6 +2418,26 @@ function App() {
                                 {showAmericanColumns && (
                                   <td className={exchangeRateImpact >= 0 ? 'profit-positive' : 'profit-negative'}>
                                     {formatPriceWithSign(exchangeRateImpact)} ₪
+                                  </td>
+                                )}
+                                {showAmericanColumns && (
+                                  <td className="profit-negative">
+                                    {formatPriceWithSign(-taxUSD)} $
+                                  </td>
+                                )}
+                                {showAmericanColumns && (
+                                  <td className="profit-negative">
+                                    {formatPriceWithSign(-taxILS)} ₪
+                                  </td>
+                                )}
+                                {showAmericanColumns && (
+                                  <td className={afterTaxUSD >= 0 ? 'profit-positive' : 'profit-negative'}>
+                                    {formatPriceWithSign(afterTaxUSD)} $
+                                  </td>
+                                )}
+                                {showAmericanColumns && (
+                                  <td className={afterTaxILS >= 0 ? 'profit-positive' : 'profit-negative'}>
+                                    {formatPriceWithSign(afterTaxILS)} ₪
                                   </td>
                                 )}
                                 {isEditMode && (
